@@ -138,7 +138,10 @@ include_directories(Core/Inc Drivers/STM32H7xx_HAL_Driver/Inc Drivers/STM32H7xx_
         src/task/trans
         src/task/shoot
         src/task/uart
-
+        src/modules/motor/UNITREE_Motor_485/485driver
+        src/modules/motor/UNITREE_Motor_485/USER_Driver
+        src/algorithm/LQR
+        src/task/Lifter
 )
 
 add_definitions(-DDEBUG -DUSE_HAL_DRIVER -DSTM32H723xx -DUSE_PWR_LDO_SUPPLY)

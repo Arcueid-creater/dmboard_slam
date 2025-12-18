@@ -30,7 +30,7 @@ static void shoot_sub_pull(void);
 /* ------------------------------------------------- 电机控制相关 ----------------------------------------------------- */
 /*发射模块电机使用数量*/
 //#define SHT_MOTOR_NUM 3
-#define SHT_MOTOR_NUM 4
+#define SHT_MOTOR_NUM 3
 
 /*发射模块电机编号：分别为左摩擦轮电机 右摩擦轮电机 拨弹电机*/
 #define RIGHT_FRICTION 0

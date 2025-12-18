@@ -219,7 +219,12 @@ void dji_motor_control()
     // 遍历所有电机实例,运行控制算法并填入报文
     for (size_t i = 0; i < idx; ++i)
     {
+        if (dji_motor_obj[i]==NULL)
+        {
+            return;
+        }
         motor = dji_motor_obj[i];
+
         measure = motor->measure;
 
         set = motor->control(measure); // 调用对接的电机控制器计算
@@ -258,6 +263,10 @@ void dji_motor_control()
 dji_motor_object_t *dji_motor_register(motor_config_t *config, void *control)
 {
     dji_motor_object_t *object = (dji_motor_object_t *)user_malloc(sizeof(dji_motor_object_t));
+    if (object == NULL)
+    {
+        return NULL;
+    }
     memset(object, 0, sizeof(dji_motor_object_t));
 
     // 对接用户配置的 motor_config

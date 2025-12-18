@@ -56,11 +56,32 @@
 
 #define BSP_USING_DJI_MOTOR
 #define BSP_USING_DM_MOTOR
-
+#define BSP_CHASSIS_MECANUM_MODE
+/*==========================================================升降底盘相关====================================*/
+#define LIFTER_MAX_HEIGHT 0.078f
+#define LIFTER_MIN_HEIGHT 0.006f
+#define LIFTER_MID_HEIGHT 0.042f
+#define LIFTER_AMPLITUDE 0.042f
+#define LIFTER_PERIOD 4000 //ms
+#define LIFTER_
+#define LIFTER_KP_V_MOTOR 0.0400f
+#define LIFTER_KI_V_MOTOR 0.0020f
+#define LIFTER_KD_V_MOTOR 0.0001f
+#define LIFTER_INTEGRAL_V_MOTOR 0.0500f
+#define LIFTER_MAX_V_MOTOR 1.800f
 /*********************************************************************************/
 
+#define WHEEL_PERIMETER   478
+#define LENGTH_A 260 //底盘长的一半(mm)
+#define LENGTH_B 200 //底盘宽的一半(mm)
+#define LENGTH_RADIUS 390 //底盘半径(mm)
 
-
+#define GIMBAL_MID_HEIGHT 0.0f
+#define GIMBAL_MAX_HEIGHT 0.0f
+#define GIMBAL_MIN_HEIGHT 0.0f
+#define GIMBAL_RELAX_HEIGHT 0.0f
+#define GIMBAL_LENGTH 0.0f
+#define SIDEWAYS_ANGLE   0
 /* ---------------------------------- 底盘相关 ---------------------------------- */
 #ifdef WHEEL_LEG_INFANTRY
 /* 底盘轮距(m) */

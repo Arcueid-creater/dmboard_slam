@@ -1,8 +1,10 @@
-//
-// Created by SuperChen on 2025/11/30.
-//
 
-#ifndef CTRBOARD_H7_ALL_UART_RECEIVE_H
-#define CTRBOARD_H7_ALL_UART_RECEIVE_H
 
-#endif //CTRBOARD_H7_ALL_UART_RECEIVE_H
+#ifndef CTRBOARD_H7_ALL_USART_RECIVE_TASK_H
+#define CTRBOARD_H7_ALL_USART_RECIVE_TASK_H
+
+
+
+void USARTRecTask_Entry(void const * argument);
+
+#endif //CTRBOARD_H7_ALL_USART_RECIVE_TASK_H

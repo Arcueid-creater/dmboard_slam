@@ -30,7 +30,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+#include "unitree_motor.h"
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -142,12 +142,16 @@ __weak void StartDefaultTask(void const * argument)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN StartDefaultTask */
   /* Infinite loop */
+
+  // vTaskDelay(100);
+  // init_example_motor();
   for(;;)
   {
+
       WS2812_Ctrl(1, 100, 1);
-      osDelay(1000);
+      vTaskDelay(500);
       WS2812_Ctrl(0, 0, 0);
-      osDelay(1000);
+      vTaskDelay(500);
 
   }
   /* USER CODE END StartDefaultTask */

@@ -95,14 +95,14 @@ void trans_control(){
     }
 //        judge_color();
     Send_to_pc(rpy_tx_data);
-    vTaskDelay(100);
+    // vTaskDelay(100);
 
 /*--------------------------------------------------具体需要发送的数据---------------------------------*/
     /* 用于调试监测线程调度使用 */
     trans_dt = dwt_get_time_ms() - trans_start;
     if (trans_dt > 1)
         LOGINFO("Transmission Task is being DELAY! dt = [%f]\r\n", &trans_dt);
-    vTaskDelay(1);
+    // vTaskDelay(1);
 
 }
 

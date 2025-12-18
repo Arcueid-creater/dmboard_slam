@@ -214,7 +214,7 @@ void gimbal_control()
     }
     /* 用于调试监测线程调度使用 */
     gim_dt = dwt_get_time_ms() - gim_start;
-    vTaskDelay(1);
+    // vTaskDelay(1);
 }
 
 void gimbal_control_task(){

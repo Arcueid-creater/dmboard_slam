@@ -15,5 +15,5 @@
 #include "ramp.h"
 #include "user_lib.h"
 #include "crc8_crc16.h"
-
+#include "lqr_control.h"
 #endif //CTRBOARD_H7_ALL_RM_ALGORITHM_H

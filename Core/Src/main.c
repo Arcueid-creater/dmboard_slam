@@ -21,7 +21,6 @@
 #include "cmsis_os.h"
 #include "dma.h"
 #include "fdcan.h"
-#include "memorymap.h"
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
@@ -34,16 +33,22 @@
 #include "BMI088driver.h"
 #include "drv_dwt.h"
 #include "hal_can.h"
+#include "lifter_task.h"
 #include "robot.h"
-
-
-
+// #include "rm_task.h"
+#include "lifter_task.h"
+// #include "unitree_rs485.h"
+#include "unitree_motor.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
 // 全局声明信号量
-
+SemaphoreHandle_t xSemaphoreUART10 = NULL;
+SemaphoreHandle_t xSemaphoreUSART2 = NULL;
+SemaphoreHandle_t xSemaphoreUART5 = NULL;
+QueueSetHandle_t xUartQueueSet = NULL; // 定义队列集句柄,统一管理串口中断信号量
+SemaphoreHandle_t  sbus_cmd_mutex = NULL;
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -113,14 +118,34 @@ int main(void)
   MX_TIM4_Init();
   MX_USART10_UART_Init();
   MX_SPI6_Init();
+  MX_USART2_UART_Init();
+  MX_USART3_UART_Init();
   /* USER CODE BEGIN 2 */
   MX_USB_DEVICE_Init();
 
   dwt_init(480);
+
   CAN_service_init();
   BMI088_init(&hspi2);
-  robot_init();
+
   SEGGER_RTT_Init();//系统日志log初始化
+  xSemaphoreUART10 = xSemaphoreCreateBinary();  // <-- 在此处创建信号量
+  xSemaphoreUSART2= xSemaphoreCreateBinary();
+  xSemaphoreUART5 = xSemaphoreCreateBinary();  // <-- 在此处创建信号量
+  // 定义队列集（最多监听 3 个信号量）
+  xUartQueueSet = xQueueCreateSet(3);
+
+  xQueueAddToSet(xSemaphoreUART5, xUartQueueSet);
+  xQueueAddToSet(xSemaphoreUART10, xUartQueueSet);
+  xQueueAddToSet(xSemaphoreUSART2, xUartQueueSet);
+
+  sbus_cmd_mutex = xSemaphoreCreateMutex();  // 初始化互斥锁
+   // unitree_motor_receive_init();
+  // unitree_rs485_init();
+   // HAL_Delay(5000);
+  unitree_motor_rs485_init();
+  // init_example_motor();
+  robot_init();
   HAL_TIM_Base_Start_IT(&htim4);
   /* USER CODE END 2 */
 
@@ -211,6 +236,14 @@ void SystemClock_Config(void)
 
 /* USER CODE END 4 */
 
+/**
+  * @brief  Period elapsed callback in non blocking mode
+  * @note   This function is called  when TIM23 interrupt took place, inside
+  * HAL_TIM_IRQHandler(). It makes a direct call to HAL_IncTick() to increment
+  * a global variable "uwTick" used as application time base.
+  * @param  htim : TIM handle
+  * @retval None
+  */
 
 /**
   * @brief  This function is executed in case of error occurrence.

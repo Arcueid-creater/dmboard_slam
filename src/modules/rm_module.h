@@ -33,6 +33,6 @@
 #include "referee_system.h"
 #include "dm_imu.h"
 #include "dm_imu.h"
-
+#include "unitree_motor.h"
 
 #endif /* _RM_MODULE_H */

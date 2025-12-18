@@ -24,7 +24,7 @@ static struct dm_imu_t *gimbal_imu;
 
 
 static uint32_t pulse = 0;
-static pid_obj_t *imu_temp_pid;
+static pid_obj_t *imu_temp_pid=NULL;
 //static pid_config_t imu_temp_config = INIT_PID_CONFIG(100,50,10, 100, 500, PID_Integral_Limit);
 static pid_config_t imu_temp_config = INIT_PID_CONFIG(0,0,0, 0, 0, PID_Integral_Limit);
 
@@ -112,21 +112,29 @@ void ins_control()
     ins.yaw_total_angle = QEKF_INS.YawTotalAngle;
 
     {/* publish msg */
-        // FIXME:/* 根据陀螺仪安装情况进行调整 */
+        ////TODO 根据安装方向，给ins_data反向处理
         // NOTE: yaw轴右为正，pitch轴上为正，roll轴顺时针为正
-        ins_data.yaw = -ins.yaw;
-        ins_data.roll = - ins.pitch;
-        ins_data.yaw_total_angle = -ins.yaw_total_angle;
-        ins_data.pitch =  ins.roll;
+
+        ins_data.yaw = ins.yaw;
+        ins_data.roll = -ins.roll;
+        ins_data.yaw_total_angle = ins.yaw_total_angle;
+        ins_data.pitch =  ins.pitch;
+        ins_data.roll_gyro = -ins.gyro[1];
+        ins_data.pitch_gyro =  ins.gyro[0];
+        ins_data.yaw_gyro =  ins.gyro[2];
+
         ins_data.gyro[0] =-ins.gyro[0];
         ins_data.gyro[1] = ins.gyro[1];
-        ins_data.gyro[2] =-ins.gyro[2];
+        ins_data.gyro[2] =ins.gyro[2];
         ins_data.accel[0] = ins.accel[0];
         ins_data.accel[1] = ins.accel[1];
         ins_data.accel[2] = ins.accel[2];
         ins_data.motion_accel_b[0] = ins.motion_accel_b[0];
         ins_data.motion_accel_b[1] = ins.motion_accel_b[1];
         ins_data.motion_accel_b[2] = ins.motion_accel_b[2];
+        ins_data.motion_accel_n[0] = ins.motion_accel_n[0];
+        ins_data.motion_accel_n[1] = ins.motion_accel_n[1];
+        ins_data.motion_accel_n[2] = ins.motion_accel_n[2];
         mcn_publish(MCN_HUB(ins_topic), &ins_data);
         mcn_publish(MCN_HUB(gimbal_ins_topic), gimbal_imu);
     }
@@ -134,7 +142,7 @@ void ins_control()
     if ((count % 2) == 0)
     {
         pulse = pid_calculate(imu_temp_pid, BMI088.temperature, IMU_TARGET_TEMP);
-        TIM_Set_PWM(&htim3, TIM_CHANNEL_4, pulse);
+        // TIM_Set_PWM(&htim3, TIM_CHANNEL_4, pulse);
     }
 
     count++;
@@ -195,7 +203,7 @@ static void InitQuaternion(float *init_q4)
         BMI088_Read(&BMI088);
         acc_init[0] = BMI088.accel[0];
         acc_init[1] = BMI088.accel[1];
-        acc_init[3] = BMI088.accel[2];
+        acc_init[2] = BMI088.accel[2];
         dwt_delay_s(0.001);
     }
     for (uint8_t i = 0; i < 3; ++i)

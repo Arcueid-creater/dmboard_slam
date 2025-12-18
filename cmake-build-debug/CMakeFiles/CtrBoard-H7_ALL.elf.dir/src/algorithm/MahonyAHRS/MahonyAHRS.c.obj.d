@@ -1,18 +1,18 @@
 CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/algorithm/MahonyAHRS/MahonyAHRS.c.obj: \
- D:\HNU_RM_CodeStorage\Serial_Balance_H723_11_24\HNU_Serial_H723_2025_11_20\src\algorithm\MahonyAHRS\MahonyAHRS.c \
- D:\HNU_RM_CodeStorage\Serial_Balance_H723_11_24\HNU_Serial_H723_2025_11_20\src\algorithm\MahonyAHRS\MahonyAHRS.h \
- d:\stm32environment\arm\arm-none-eabi\include\math.h \
- d:\stm32environment\arm\arm-none-eabi\include\sys\reent.h \
- d:\stm32environment\arm\arm-none-eabi\include\_ansi.h \
- d:\stm32environment\arm\arm-none-eabi\include\newlib.h \
- d:\stm32environment\arm\arm-none-eabi\include\_newlib_version.h \
- d:\stm32environment\arm\arm-none-eabi\include\sys\config.h \
- d:\stm32environment\arm\arm-none-eabi\include\machine\ieeefp.h \
- d:\stm32environment\arm\arm-none-eabi\include\sys\features.h \
- d:\stm32environment\arm\lib\gcc\arm-none-eabi\10.3.1\include\stddef.h \
- d:\stm32environment\arm\arm-none-eabi\include\sys\_types.h \
- d:\stm32environment\arm\arm-none-eabi\include\machine\_types.h \
- d:\stm32environment\arm\arm-none-eabi\include\machine\_default_types.h \
- d:\stm32environment\arm\arm-none-eabi\include\sys\lock.h \
- d:\stm32environment\arm\arm-none-eabi\include\sys\cdefs.h \
- d:\stm32environment\arm\arm-none-eabi\include\_ansi.h
+ D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\src\algorithm\MahonyAHRS\MahonyAHRS.c \
+ D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\src\algorithm\MahonyAHRS\MahonyAHRS.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\math.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\sys\reent.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\_ansi.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\newlib.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\_newlib_version.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\sys\config.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\machine\ieeefp.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\sys\features.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\lib\gcc\arm-none-eabi\10.3.1\include\stddef.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\sys\_types.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\machine\_types.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\machine\_default_types.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\sys\lock.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\sys\cdefs.h \
+ d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\_ansi.h

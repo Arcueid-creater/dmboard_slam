@@ -36,7 +36,7 @@ void motor_control_task(void)
     if (motor_dt > 3){
         LOGERROR("Motor Task is being DELAY! dt = [%f]\n", &motor_dt);
     }
-    osDelay(1);
+    // osDelay(1);
 }
 
 static float can_tim_dt, can_tim_start;
@@ -48,7 +48,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
         can_tim_dt = dwt_get_time_us() - can_tim_start;
         can_tim_start = dwt_get_time_us();
 #ifdef BSP_USING_DM_MOTOR
-        dm_controll_all_poll();
+
+        // dm_controll_all_poll();
 #endif /* BSP_USING_DM_MOTOR */
 
     }

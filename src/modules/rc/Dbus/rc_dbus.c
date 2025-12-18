@@ -12,63 +12,8 @@ extern UART_HandleTypeDef huart5;
 #define VALID_CHANNEL(val) (abs(val) <= RC_MAX_VALUE)
 
 
-#define SBUS_RX_BUF_NUM 36
-#define RC_FRAME_LENGTH 18 /*DT7遥控器一次发送的数据量为18字节*/
-static uint8_t SBUS_MultiRx_Buf[2][RC_FRAME_LENGTH];
-uint32_t DataLength = 36;
 rc_dbus_obj_t rc_dbus_obj[2];   // [0]:当前数据NOW,[1]:上一次的数据LAST
 
-/*
- * @brief dma双缓冲区配置
- * @param UART_HandleTypeDef *huart：接收哪个串口数据的结构体指针
- * @param uint32_t *DstAddress：第一个缓冲区的地址
- * @param uint32_t *SecondMemAddress ：第二个缓冲区的地址
- * @param uint32_t DataLength：接收数据的长度
- * */
-static void USART_DMAEx_MultiBuffer_Init(UART_HandleTypeDef *huart, uint32_t *DstAddress, uint32_t *SecondMemAddress, uint32_t DataLength)
-{   /*串口接收与UART接收事件类型*/
-    huart->ReceptionType = HAL_UART_RECEPTION_TOIDLE;
-
-    huart->RxEventType = HAL_UART_RXEVENT_IDLE;
-    /*设定串口接收数据的长度*/
-    huart->RxXferSize    = DataLength;
-    /*使能串口DMA模式*/
-    SET_BIT(huart->Instance->CR3,USART_CR3_DMAR);
-    /*使能串口的空闲中断*/
-    __HAL_UART_ENABLE_IT(huart, UART_IT_IDLE);
-
-    do{
-        __HAL_DMA_DISABLE(huart->hdmarx);
-    }while(((DMA_Stream_TypeDef  *)huart->hdmarx->Instance)->CR & DMA_SxCR_EN);/*在配置DMA的传输起点和终点的地址前需要先关闭DMA数据传输，以免发生传输意外*/
-    /*将DMA 数据流 x 外设地址寄存器 (DMA_SxPAR) 等于USART 接收数据寄存器 (USART_RDR)即可*/
-    ((DMA_Stream_TypeDef  *)huart->hdmarx->Instance)->PAR = (uint32_t)&huart->Instance->RDR;
-    /*将这M0AR寄存器和M1AR寄存器配置成代码中的变量地址即可*/
-    ((DMA_Stream_TypeDef  *)huart->hdmarx->Instance)->M0AR = (uint32_t)DstAddress;
-
-    ((DMA_Stream_TypeDef  *)huart->hdmarx->Instance)->M1AR = (uint32_t)SecondMemAddress;
-    /*设置DMA数据传输量*/
-    ((DMA_Stream_TypeDef  *)huart->hdmarx->Instance)->NDTR = DataLength;
-
-    SET_BIT(((DMA_Stream_TypeDef  *)huart->hdmarx->Instance)->CR, DMA_SxCR_DBM);
-    /*使能DMA*/
-    __HAL_DMA_ENABLE(huart->hdmarx);
-}
-
-/*和static void USART_DMAEx_MultiBuffer_Init(UART_HandleTypeDef *huart, uint32_t *DstAddress, uint32_t *SecondMemAddress, uint32_t DataLength)实现同一效果*/
-//static void USART_RxDMA_DoubleBuffer_Init(UART_HandleTypeDef *huart, uint32_t *DstAddress, uint32_t *SecondMemAddress, uint32_t DataLength){
-//
-//    huart->ReceptionType = HAL_UART_RECEPTION_TOIDLE;
-//
-//    huart->RxEventType = HAL_UART_RXEVENT_IDLE;
-//
-//    huart->RxXferSize    = DataLength;
-//
-//    SET_BIT(huart->Instance->CR3,USART_CR3_DMAR);
-//
-//    __HAL_UART_ENABLE_IT(huart, UART_IT_IDLE);
-//
-//    HAL_DMAEx_MultiBufferStart(huart->hdmarx,(uint32_t)&huart->Instance->RDR,(uint32_t)DstAddress,(uint32_t)SecondMemAddress,DataLength);
-//}
 
 /**
  * @brief 初始化sbus_rc
@@ -77,7 +22,7 @@ static void USART_DMAEx_MultiBuffer_Init(UART_HandleTypeDef *huart, uint32_t *Ds
  */
 rc_dbus_obj_t *dbus_rc_init(void)
 {
-    USART_DMAEx_MultiBuffer_Init(&huart5,SBUS_MultiRx_Buf[0], SBUS_MultiRx_Buf[1],36);
+    // USART_DMAEx_MultiBuffer_Init(&huart5,SBUS_MultiRx_Buf[0], SBUS_MultiRx_Buf[1],36);
     // 遥控器离线检测定时器相关
     return rc_dbus_obj;
 }
@@ -141,40 +86,4 @@ int dbus_rc_decode(uint8_t *buff)
     rc_dbus_obj[LAST] = rc_dbus_obj[NOW];
 }
 
-static void USER_USART5_RxHandler(UART_HandleTypeDef *huart,uint16_t Size){
 
-    if(((((DMA_Stream_TypeDef  *)huart->hdmarx->Instance)->CR) & DMA_SxCR_CT ) == RESET)
-    {
-        __HAL_DMA_DISABLE(huart->hdmarx);
-
-        ((DMA_Stream_TypeDef  *)huart->hdmarx->Instance)->CR |= DMA_SxCR_CT;
-
-        __HAL_DMA_SET_COUNTER(huart->hdmarx,SBUS_RX_BUF_NUM);
-
-        if(Size == RC_FRAME_LENGTH)
-        {
-            dbus_rc_decode(SBUS_MultiRx_Buf[0]);
-        }
-
-    }else{
-        __HAL_DMA_DISABLE(huart->hdmarx);
-
-        ((DMA_Stream_TypeDef  *)huart->hdmarx->Instance)->CR &= ~(DMA_SxCR_CT);
-
-        __HAL_DMA_SET_COUNTER(huart->hdmarx,SBUS_RX_BUF_NUM);
-
-        if(Size == RC_FRAME_LENGTH)
-        {
-            dbus_rc_decode(SBUS_MultiRx_Buf[1]);
-        }
-    }
-    __HAL_DMA_ENABLE(huart->hdmarx);
-}
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart,uint16_t Size)
-{
-    if(huart == &huart5){
-
-        USER_USART5_RxHandler(huart,Size);
-
-    }
-}

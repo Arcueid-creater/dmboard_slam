@@ -23,7 +23,7 @@ typedef struct
 {
     float q[4]; // 四元数估计值
 
-    float motion_accel_b[3]; // 机体坐标加速度
+    float motion_accel_b[3]; // 机体坐标加速度 //加速度沿着坐标轴的正方向
     float motion_accel_n[3]; // 绝对系加速度
 
     float accel_lpf; // 加速度低通滤波系数
@@ -38,12 +38,12 @@ typedef struct
     // float atanyz;
 
     // IMU量测值
-    float gyro[3];  // 角速度
+    float gyro[3];  // 角速度 X =0 Y=1 Z=2
     float accel[3]; // 加速度
     // 位姿
-    float roll;
-    float pitch;
-    float yaw;
+    float roll;     //绕着X轴顺时针增大
+    float pitch;    //绕着Y轴顺时针减小
+    float yaw;      //绕着Z轴顺时针增大
     float yaw_total_angle;
 
     uint8_t init;

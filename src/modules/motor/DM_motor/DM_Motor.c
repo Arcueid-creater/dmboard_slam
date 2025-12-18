@@ -12,7 +12,7 @@ extern FDCAN_HandleTypeDef hfdcan2;
 static dm_motor_object_t dm_motor_obj[DM_MOTOR_CNT];
 static uint8_t idx=0;
 
-static void pack_contol_para(dm_motor_para_t para, uint8_t *buf);
+static void pack_contol_para(dm_motor_para_t para, uint8_t *buf ,dm_set_mode_e  set_control_mode);
 
 uint8_t Data_Enable[8]={0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFC};		//电机使能命令
 uint8_t Data_Failure[8]={0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFD};		//电机失能命令
@@ -111,6 +111,10 @@ static float fdb_start[4];
 // 运算电机实例的控制器,发送控制报文
 static void dm_motor_control(void const *parameter)
 {
+    // if (parameter==NULL)
+    // {
+    //     return;
+    // }
     dm_motor_object_t *motor = (dm_motor_object_t *)parameter;
     dm_motor_measure_t measure = motor->measure;
     dm_motor_para_t set; // 电机控制器计算得到的控制参数
@@ -137,7 +141,7 @@ static void dm_motor_control(void const *parameter)
             if (motor->stop_flag == MOTOR_STOP) {
                 memset(&set, 0, sizeof(dm_motor_para_t));
             }
-            pack_contol_para(set, data_buf); // 将控制参数打包成报文数据帧
+            pack_contol_para(set, data_buf,motor->set_control_mode); // 将控制参数打包成报文数据帧
             CAN_send(motor->fdcan, motor->tx_id, data_buf);  // 发送报文
         }
     }
@@ -149,9 +153,13 @@ static void dm_motor_control(void const *parameter)
 void dm_controll_all_poll(void)
 {
     static uint8_t i;
+    // if (i>=idx)
+    // {
+    //     return;
+    // }
+
     dm_motor_control(&dm_motor_obj[i++]);
-    if(i==4)
-        i=0;
+
 }
 
 /**
@@ -238,14 +246,15 @@ dm_motor_object_t *dm_motor_register(motor_config_t *config, void *control)
   * @brief  封装一帧参数控制报文的数据帧
   * @param  para: 电机控制参数
   * @param  buf:  CAN数据帧
+  * @param set_control_mode
   * @retval
   */
-uint8_t *pbuf,*vbuf;
-static void pack_contol_para(dm_motor_para_t para, uint8_t *buf)
+
+static void pack_contol_para(dm_motor_para_t para, uint8_t *buf ,dm_set_mode_e  set_control_mode)
 {
     uint16_t p, v, kp, kd, t;
-
-    switch (dm_motor_obj[idx].set_control_mode) {
+    uint8_t *pbuf=NULL,*vbuf=NULL;
+    switch (set_control_mode) {
 
         case MIT:
 

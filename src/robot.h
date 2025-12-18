@@ -26,10 +26,14 @@ struct ins_msg
     float gyro[3];  // 角速度,°/s
     float accel[3]; // 加速度
     float motion_accel_b[3]; // 机体坐标加速度
+    float motion_accel_n[3]; // 绝对系加速度
     // 位姿
     float roll;  /*yaw,pitch,roll都为°*/
     float pitch;
     float yaw;
+    float roll_gyro;
+    float pitch_gyro;
+    float yaw_gyro;
     float yaw_total_angle;
 };
 
@@ -63,7 +67,9 @@ typedef enum
     GIMBAL_RELAX = 0,        //云台断电
     GIMBAL_INIT = 1,         //云台初始化
     GIMBAL_GYRO = 2,         //云台跟随imu闭环
-    GIMBAL_AUTO = 3          //云台自瞄
+    GIMBAL_AUTO = 3 ,         //云台自瞄
+    GIMBAL_NO_FOLLOW=4,
+    GIMBAL_LIFTER=5
 } gimbal_mode_e;
 
 struct gimbal_cmd_msg
@@ -72,11 +78,15 @@ struct gimbal_cmd_msg
     float pitch;
     gimbal_mode_e ctrl_mode;  // 当前云台控制模式
     gimbal_mode_e last_mode;  // 上一次云台控制模式
+    float gimbal_height;
+    float gimbal_angle;
 };
 
-
-
-
+typedef struct
+{
+    float height;
+    float dheight;
+}height_ref_t;
 //// TODO：后续优化启用，目前时间紧急，使用extern
 //struct referee_msg
 //{
@@ -91,35 +101,63 @@ struct gimbal_cmd_msg
 struct chassis_cmd_msg
 {
     float vx;                  // 前进方向速度
-    float vx_set;              //前进速度斜坡过程值
-
     float vy;                  // 横移方向速度
     float vw;                  // 旋转速度
-    float vw_set;              //转向速度斜坡过程值
-    // TODO: 轮腿前期调试使用
-    float leg_length;          // 腿长
-    float leg_angle;           // 腿角度
     float offset_angle;        // 底盘和归中位置的夹角
     chassis_mode_e ctrl_mode;  // 当前底盘控制模式
     chassis_mode_e last_mode;  // 上一次底盘控制模式
-    leg_level_e leg_level;     // 腿长等级
-    leg_change_e leg_leng_change;      //腿长变化
 
 };
-
 /* ------------------------------ chassis反馈状态数据 ------------------------------ */
 /**
  * @brief 底盘真实反馈状态数据,由chassis发布
  */
 struct chassis_fdb_msg
 {
-    leg_back_state_e leg_state;  // 腿部归中初始化情况
-    chassis_stand_state_e stand_state;  // 机器人站立状态
-    /*  底盘任务使用到的电机句柄,仅能对其 measure 成员当作传感器数据读取，禁止改写 */
-    dji_motor_measure_t M3508_l;  //左轮毂电机
-    dji_motor_measure_t M3508_r;  //右轮毂电机
+    float x_pos_gim;
+    float y_pos_gim;
+    float vw_ch;  // 底盘旋转速度
+};
+typedef enum
+{
+    LIFTER_BACK_STEP = 0,
+    LIFTER_BACK_IS_OK  = 1,
+}lifter_back_e;
+/**
+ * @brief 升降真实反馈状态数据,由lifter发布
+ */
+struct lifter_fdb_msg
+{
+    float real_height;
+    float real_dheight;
+    float real_angle;
+    lifter_back_e back_mode;
+};
+/**
+ * @brief cmd发布的底盘控制数据,由lifter订阅
+ */
+typedef enum
+{
+    LIFTER_RELAX ,//失能
+    // LIFTER_STOP,
+    // LIFTER_OPEN_LOOP,
+    // LIFTER_FOLLOW_GIMBAL
+    LIFTER_SPIN,//小陀螺
+    LIFTER_FLY,//飞坡
+    LIFTER_HEIGHT_CHANGE,//底盘高度变化
+    LIFTER_HEIGHT_KEEP, //底盘高度保持不变
+    LIFTER_HEIGHT_INIT//归中模式的底盘高度作为最适合的运动模式
+} lifter_mode_e ;
 
-    bool touch_ground;         // 是否触地
+struct lifter_cmd_msg
+{
+    float height;//控制高度
+    float d_height ;//控制速度
+    float target_angle;
+    float dTarget_angle ;
+    int enable;
+    lifter_mode_e ctrl_mode;
+    lifter_mode_e last_mode;
 };
 
 /**
