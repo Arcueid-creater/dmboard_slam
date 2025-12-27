@@ -62,13 +62,30 @@
 #define LIFTER_MIN_HEIGHT 0.006f
 #define LIFTER_MID_HEIGHT 0.042f
 #define LIFTER_AMPLITUDE 0.042f
-#define LIFTER_PERIOD 4000 //ms
-#define LIFTER_
+#define LIFTER_PERIOD 2000 //ms
+// #define LIFTER_
 #define LIFTER_KP_V_MOTOR 0.0400f
-#define LIFTER_KI_V_MOTOR 0.0020f
+#define LIFTER_KI_V_MOTOR 0.0040f
 #define LIFTER_KD_V_MOTOR 0.0001f
-#define LIFTER_INTEGRAL_V_MOTOR 0.0500f
+#define LIFTER_INTEGRAL_V_MOTOR 0.100f
 #define LIFTER_MAX_V_MOTOR 1.800f
+#define LIFTER_KP_PA_MOTOR  5.00f
+#define LIFTER_KI_PA_MOTOR 1.0f
+#define LIFTER_KD_PA_MOTOR 0.0001f
+#define LIFTER_INTEGRAL_PA_MOTOR 15.0f
+#define LIFTER_MAX_PA_MOTOR 50.0f
+
+#define LIFTER_KP_RA_MOTOR  1.0f
+#define LIFTER_KI_RA_MOTOR 0.3f
+#define LIFTER_KD_RA_MOTOR 0.0001f
+#define LIFTER_INTEGRAL_RA_MOTOR 3.0f
+#define LIFTER_MAX_RA_MOTOR 50.0f
+
+#define LIFTER_KP_Z_MOTOR 0.01f
+#define LIFTER_KI_Z_MOTOR 0.001f
+#define LIFTER_KD_Z_MOTOR 0.0001f
+#define LIFTER_INTEGRAL_Z_MOTOR 2.0f
+#define LIFTER_MAX_Z_MOTOR 50.0f
 /*********************************************************************************/
 
 #define WHEEL_PERIMETER   478
@@ -109,13 +126,19 @@
 #define CHASSIS_DECELE_RATIO (1.0f/19.0f)
 /* 单个电机速度极限，单位是分钟每转 */
 #define MAX_WHEEL_RPM        9000   //8347rpm = 3500mm/s
-
+/* 鼠标键盘模式下的底盘最大速度限制 */
+/* 底盘平移速度 */
+#define CHASSIS_PC_MOVE_RATIO_X 1.0f
+/* 底盘前进速度 */
+#define CHASSIS_PC_MOVE_RATIO_Y 1.0f
+/* 底盘旋转速度，只在底盘开环模式下使用 */
+#define CHASSIS_PC_MOVE_RATIO_R 5.0f
 /******** 底盘最大速度设置 *******/
 /* 底盘移动最大速度，单位是毫米每秒 */
 #define MAX_CHASSIS_VX_SPEED 2000
-#define MAX_CHASSIS_VY_SPEED 20 // 对应平步底盘，该值为roll轴倾斜
+#define MAX_CHASSIS_VY_SPEED 2000 // 对应平步底盘，该值为roll轴倾斜
 /* 底盘旋转最大速度，单位是度每秒 */
-#define MAX_CHASSIS_VR_SPEED 360
+#define MAX_CHASSIS_VR_SPEED 3
 
 /* --------------------------------- 底盘PID参数 -------------------------------- */
 /* 电机速度环 */
@@ -133,7 +156,7 @@
 #define CHASSIS_MAX_V_FOLLOW            1500
 
 /* ---------------------------------- 云台相关 ---------------------------------- */
-#define YAW_MOTOR_ID     0x207
+#define YAW_MOTOR_ID     0
 #define PITCH_MOTOR_ID   0x208
 
 #define CENTER_ECD_YAW   0        //云台yaw轴编码器归中值

@@ -146,4 +146,5 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/task/chassis/chassis_task.c.obj: \
  D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\src\modules\motor\UNITREE_Motor_485\USER_Driver/unitree_motor.h \
  D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\src\modules\motor\UNITREE_Motor_485\485driver/motor_control.h \
  D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\src\modules\motor\UNITREE_Motor_485\485driver/ris_protocol.h \
- D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\Core\Inc/usart.h
+ D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\Core\Inc/usart.h \
+ D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\src\modules\rc\keyboard/keyboard.h

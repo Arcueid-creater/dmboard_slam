@@ -49,7 +49,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
         can_tim_start = dwt_get_time_us();
 #ifdef BSP_USING_DM_MOTOR
 
-        // dm_controll_all_poll();
+        dm_controll_all_poll();
 #endif /* BSP_USING_DM_MOTOR */
 
     }

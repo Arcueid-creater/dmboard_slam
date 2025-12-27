@@ -246,10 +246,10 @@ void dji_motor_control()
         if (sender_enable_flag[i])
         {
             if(i < 3){
-                CAN_send(&CAN_WHEEL_MOTOR, motor->tx_id, send_msg[i].data);
+                CAN_send(&CAN_CHASSIS_MOTOR, send_msg[i].id, send_msg[i].data);
             }
             else{
-                CAN_send(&CAN_GIMBAL, motor->tx_id, send_msg[i].data);
+                CAN_send(&CAN_CHASSIS_MOTOR, send_msg[i].id, send_msg[i].data);
             }
         }
     }
@@ -262,8 +262,12 @@ void dji_motor_control()
  */
 dji_motor_object_t *dji_motor_register(motor_config_t *config, void *control)
 {
-    dji_motor_object_t *object = (dji_motor_object_t *)user_malloc(sizeof(dji_motor_object_t));
+    dji_motor_object_t *object = (dji_motor_object_t *)pvPortMalloc(sizeof(dji_motor_object_t));
     if (object == NULL)
+    {
+        return NULL;
+    }
+    if (idx>=DJI_MOTOR_CNT)
     {
         return NULL;
     }

@@ -126,6 +126,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/leg_wbr/leg_wbr.c.obj: \
  D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\src\modules\motor\UNITREE_Motor_485\485driver/motor_control.h \
  D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\src\modules\motor\UNITREE_Motor_485\485driver/ris_protocol.h \
  D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\Core\Inc/usart.h \
+ D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\src\modules\rc\keyboard/keyboard.h \
  D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\Middlewares\ST\ARM\DSP\Inc/arm_math.h \
  D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\Drivers\CMSIS\Include/cmsis_compiler.h \
  d:\qq\wenjian\arm_gcc\arm_gcc\arm_gcc\arm\arm-none-eabi\include\string.h \

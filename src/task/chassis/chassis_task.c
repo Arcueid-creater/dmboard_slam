@@ -76,18 +76,94 @@ static void (*chassis_calc_moto_speed)(struct chassis_cmd_msg *cmd, int16_t* out
 
 /* ---------------------------------------------- 其余变量与函数声明 ---------------------------------------------------- */
 float follow_err,vw;
-static void chassis_motor_init();
+ void chassis_motor_init();
 static void absolute_cal(struct chassis_cmd_msg *cmd, float angle);
 static float chassis_dt;
 
 void chassis_task_init()
 {
-
+    chassis_pub_init();
+    chassis_sub_init();
+    chassis_motor_init();
 }
 int chass_a=0;
 void chassis_control_task(void)
 {
-    chass_a++;
+            chassis_sub_pull();
+            /* 计算实际速度 */
+            //omni_get_speed(chassis_motor);
+            /* 更新该线程所有的订阅者 */
+            // chassis_sub_pull();
+
+            for (uint8_t i = 0; i < 4; i++) {
+                dji_motor_enable(chassis_motor[i]);
+            }
+
+            switch (chassis_cmd.ctrl_mode) {
+                case CHASSIS_RELAX:
+                    for (uint8_t i = 0; i < 4; i++) {
+                        dji_motor_relax(chassis_motor[i]);
+                    }
+                    break;
+                case CHASSIS_FOLLOW_GIMBAL:
+                    follow_err = chassis_cmd.offset_angle;
+                    if (follow_err < 5 && follow_err >= 0) {
+                        chassis_cmd.offset_angle = follow_err * follow_err / 5;
+                    } else if (follow_err < 0 && follow_err > -5) {
+                        chassis_cmd.offset_angle = -follow_err * follow_err / 5;
+                    }
+
+                    vw = -pid_calculate(follow_pid, chassis_cmd.offset_angle, SIDEWAYS_ANGLE);
+                    chassis_cmd.vw = vw;
+
+                    /* 底盘运动学解算 */
+                    absolute_cal(&chassis_cmd, chassis_cmd.offset_angle);
+                    chassis_calc_moto_speed(&chassis_cmd, motor_ref);
+                    break;
+                case CHASSIS_SPIN:
+                    if (chassis_fdb.spin_flag==0)
+                    {
+                        chassis_fdb.spin_yaw_offset=ins_data.yaw;
+                        chassis_fdb.spin_flag=1;
+                    }
+                    absolute_cal(&chassis_cmd, ins_data.yaw-chassis_fdb.spin_yaw_offset);
+                    chassis_calc_moto_speed(&chassis_cmd, motor_ref);
+                    break;
+                case CHASSIS_OPEN_LOOP:
+                    chassis_calc_moto_speed(&chassis_cmd, motor_ref);
+                    break;
+                case CHASSIS_STOP:
+                    memset(motor_ref, 0, sizeof(motor_ref));
+                    break;
+                case CHASSIS_FLY:
+                    break;
+                case CHASSIS_AUTO:
+                    break;
+                case CHASSIS_NO_GIMBAL:
+                    // absolute_cal(&chassis_cmd, chassis_cmd.offset_angle);
+                    /* 底盘不跟随云台模式：底盘速度直接受chassis_cmd控制，不进行坐标转换 */
+                    chassis_calc_moto_speed(&chassis_cmd, motor_ref);
+                case CHASSIS_RETURN:
+                    if (fabs(ins_data.yaw-chassis_fdb.spin_yaw_offset) < 0.5)
+                    {
+                        chassis_fdb.spin_flag=0;
+                    }
+                    vw = -pid_calculate(follow_pid, ins_data.yaw-chassis_fdb.spin_yaw_offset, SIDEWAYS_ANGLE);
+                    // // chassis_cmd.vw = vw;
+                    //
+                    // /* 底盘运动学解算 */
+                    // absolute_cal(&chassis_cmd, ins_data.yaw-chassis_fdb.spin_yaw_offset);
+                    chassis_calc_moto_speed(&chassis_cmd, motor_ref);
+                    break;
+                default:
+                    for (uint8_t i = 0; i < 4; i++) {
+                        dji_motor_relax(chassis_motor[i]);
+                    }
+                    break;
+            }
+
+            /* 更新发布该线程的msg */
+            chassis_pub_push();
 }
 /* ------------------------------------------------- 底盘线程入口 ------------------------------------------------------ */
 void ChassisTask_Entry(void const * argument)
@@ -138,7 +214,12 @@ void ChassisTask_Entry(void const * argument)
                     chassis_calc_moto_speed(&chassis_cmd, motor_ref);
                     break;
                 case CHASSIS_SPIN:
-                    absolute_cal(&chassis_cmd, chassis_cmd.offset_angle);
+                    if (chassis_fdb.spin_flag==0)
+                    {
+                        chassis_fdb.spin_yaw_offset=ins_data.yaw;
+                        chassis_fdb.spin_flag=1;
+                    }
+                    absolute_cal(&chassis_cmd, ins_data.yaw-chassis_fdb.spin_yaw_offset);
                     chassis_calc_moto_speed(&chassis_cmd, motor_ref);
                     break;
                 case CHASSIS_OPEN_LOOP:
@@ -150,6 +231,22 @@ void ChassisTask_Entry(void const * argument)
                 case CHASSIS_FLY:
                     break;
                 case CHASSIS_AUTO:
+                    break;
+                case CHASSIS_NO_GIMBAL:
+                    // absolute_cal(&chassis_cmd, chassis_cmd.offset_angle);
+                    /* 底盘不跟随云台模式：底盘速度直接受chassis_cmd控制，不进行坐标转换 */
+                    chassis_calc_moto_speed(&chassis_cmd, motor_ref);
+                case CHASSIS_RETURN:
+                    if (fabs(ins_data.yaw-chassis_fdb.spin_yaw_offset) < 0.5)
+                    {
+                        chassis_fdb.spin_flag=0;
+                    }
+                    vw = -pid_calculate(follow_pid, ins_data.yaw-chassis_fdb.spin_yaw_offset, SIDEWAYS_ANGLE);
+                    chassis_cmd.vw = vw;
+
+                    /* 底盘运动学解算 */
+                    absolute_cal(&chassis_cmd, chassis_cmd.offset_angle);
+                    chassis_calc_moto_speed(&chassis_cmd, motor_ref);
                     break;
                 default:
                     for (uint8_t i = 0; i < 4; i++) {
@@ -256,28 +353,28 @@ motor_config_t chassis_motor_config[4] =
         {
                 {
                         .motor_type = M3508,
-                        .can_id = 1,
+                        .can_id = CAN_ID_CHASSIS_MOTOR,
                         .rx_id = 0x201,
                         .tx_id = 0x201,
                         .controller = &chassis_controller[0],
                 },
                 {
                         .motor_type = M3508,
-                        .can_id = 1,
+                        .can_id = CAN_ID_CHASSIS_MOTOR,
                         .rx_id = 0x202,
                         .tx_id = 0x202,
                         .controller = &chassis_controller[1],
                 },
                 {
                         .motor_type = M3508,
-                        .can_id = 1,
+                        .can_id = CAN_ID_CHASSIS_MOTOR,
                         .rx_id = 0x203,
                         .tx_id = 0x203,
                         .controller = &chassis_controller[2],
                 },
                 {
                         .motor_type = M3508,
-                        .can_id = 1,
+                        .can_id =CAN_ID_CHASSIS_MOTOR,
                         .rx_id = 0x204,
                         .tx_id = 0x204,
                         .controller = &chassis_controller[3],
@@ -299,10 +396,10 @@ static void mecanum_calc(struct chassis_cmd_msg *cmd, int16_t* out_speed)
     VAL_LIMIT(cmd->vy, -MAX_CHASSIS_VY_SPEED, MAX_CHASSIS_VY_SPEED);  //mm/s
     VAL_LIMIT(cmd->vw, -MAX_CHASSIS_VR_SPEED, MAX_CHASSIS_VR_SPEED);  //rad/s
 
-    wheel_rpm[0] = ( cmd->vx + cmd->vy + cmd->vw * (LENGTH_A + LENGTH_B)) * wheel_rpm_ratio;//left//x，y方向速度,w底盘转动速度
-    wheel_rpm[1] = ( cmd->vx - cmd->vy + cmd->vw * (LENGTH_A + LENGTH_B)) * wheel_rpm_ratio;//forward
-    wheel_rpm[2] = (-cmd->vx - cmd->vy + cmd->vw * (LENGTH_A + LENGTH_B)) * wheel_rpm_ratio;//right
-    wheel_rpm[3] = (-cmd->vx + cmd->vy + cmd->vw * (LENGTH_A + LENGTH_B)) * wheel_rpm_ratio;//back
+    wheel_rpm[0] = ( cmd->vx - cmd->vy + cmd->vw * (LENGTH_A + LENGTH_B)) * wheel_rpm_ratio;//left//x，y方向速度,w底盘转动速度
+    wheel_rpm[1] = ( cmd->vx + cmd->vy + cmd->vw * (LENGTH_A + LENGTH_B)) * wheel_rpm_ratio;//forward
+    wheel_rpm[2] = (-cmd->vx + cmd->vy + cmd->vw * (LENGTH_A + LENGTH_B)) * wheel_rpm_ratio;//right
+    wheel_rpm[3] = (-cmd->vx - cmd->vy + cmd->vw * (LENGTH_A + LENGTH_B)) * wheel_rpm_ratio;//back
     chassis_fdb.vw_ch = (chassis_motor[0]->measure.speed_rpm + chassis_motor[1]->measure.speed_rpm
                          + chassis_motor[2]->measure.speed_rpm  + chassis_motor[3]->measure.speed_rpm )
                         / (4.0f * wheel_rpm_ratio * LENGTH_RADIUS);
@@ -336,7 +433,8 @@ static struct chassis_real_speed_t omni_get_speed(dji_motor_object_t *chassis_mo
 /**
 * @brief 注册底盘电机及其控制器初始化
 */
-static void chassis_motor_init()
+int motoridx=0;
+ void chassis_motor_init()
 {
     pid_config_t chassis_speed_config = INIT_PID_CONFIG(CHASSIS_KP_V_MOTOR, CHASSIS_KI_V_MOTOR, CHASSIS_KD_V_MOTOR, CHASSIS_INTEGRAL_V_MOTOR, CHASSIS_MAX_V_MOTOR,
                                                         (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
@@ -345,6 +443,7 @@ static void chassis_motor_init()
     {
         chassis_controller[i].speed_pid = pid_register(&chassis_speed_config);
         chassis_motor[i] = dji_motor_register(&chassis_motor_config[i], motor_control[i]);
+
     }
 
     follow_pid = pid_register(&chassis_follow_config);

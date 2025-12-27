@@ -125,6 +125,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/task/trans/trans_task.c.obj: \
  D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\src\modules\motor\UNITREE_Motor_485\485driver/motor_control.h \
  D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\src\modules\motor\UNITREE_Motor_485\485driver/ris_protocol.h \
  D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\Core\Inc/usart.h \
+ D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\src\modules\rc\keyboard/keyboard.h \
  D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\USB_DEVICE\App/usbd_cdc_if.h \
  D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\Middlewares\ST\STM32_USB_Device_Library\Class\CDC\Inc/usbd_cdc.h \
  D:\Robomaster\new_mecanum_fpid\HNU_Embedded_Framework\Middlewares\ST\STM32_USB_Device_Library\Core\Inc/usbd_ioreq.h \

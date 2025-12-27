@@ -94,7 +94,6 @@ void CAN_service_init(void)
         HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO0, &rx_header, rx_data);
         if (hfdcan == &hfdcan1)
         {
-
 #ifdef BSP_USING_LK_MOTOR
             if(lk_motot_rx_callback(rx_header.StdId, rx_data) == 0)
                 return;
@@ -104,9 +103,17 @@ void CAN_service_init(void)
                 return;
 #endif
 #ifdef BSP_USING_DM_MOTOR
-            if(dm_motor_rx_callback(rx_header.Identifier, rx_data) == 0)
-                return;
+            dji_motot_rx_callback(rx_header.Identifier, rx_data);
+            // dm_motor_rx_callback(rx_header.Identifier, rx_data);
+            // if(dm_motor_rx_callback(rx_header.Identifier, rx_data) == 0)
+            //     return;
 #endif
+        }
+        if (hfdcan == &hfdcan2)
+        {
+            // dji_motot_rx_callback(rx_header.Identifier, rx_data);
+            // revaaa++;
+            dm_motor_rx_callback(rx_header.Identifier, rx_data);
         }
         if (hfdcan == &hfdcan3)
         {
@@ -123,16 +130,24 @@ void CAN_service_init(void)
 
  void HAL_FDCAN_RxFifo1Callback(FDCAN_HandleTypeDef *hfdcan, uint32_t RxFifo1ITs)
  {
+
      FDCAN_RxHeaderTypeDef rx_header;
      uint8_t rx_data[8];
      while (HAL_FDCAN_GetRxFifoFillLevel(hfdcan, FDCAN_RX_FIFO1)) // FIFO不为空,有可能在其他中断时有多帧数据进入
      {
          HAL_FDCAN_GetRxMessage(hfdcan, FDCAN_RX_FIFO1, &rx_header, rx_data);
+         if (hfdcan == &hfdcan1)
+         {
+             dji_motot_rx_callback(rx_header.Identifier, rx_data);
+             // if(dji_motot_rx_callback(rx_header.Identifier, rx_data) == 0)
+             // dm_motor_rx_callback(rx_header.Identifier, rx_data);
+             //     return;
+         }
          if (hfdcan == &hfdcan2)
          {
 #ifdef BSP_USING_DJI_MOTOR
-             if(dji_motot_rx_callback(rx_header.Identifier, rx_data) == 0)
-                 return;
+             // dji_motot_rx_callback(rx_header.Identifier, rx_data);
+             dm_motor_rx_callback(rx_header.Identifier, rx_data);
 #endif
 #ifdef BSP_USING_LK_MOTOR
              if(lk_motot_rx_callback(rx_header.StdId, rx_data) == 0)

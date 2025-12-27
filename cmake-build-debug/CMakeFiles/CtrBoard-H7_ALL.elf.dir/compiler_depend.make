@@ -346,6 +346,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/Core/Src/main.c.obj: D:/Robomaster/new_mecanu
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/Lifter/lifter_task.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
@@ -4017,6 +4018,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/BMI088/BMI088driver.c.obj: D:/Rob
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/_ansi.h \
@@ -4203,6 +4205,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/can/hal_can.c.obj: D:/Robomaster/
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/_ansi.h \
@@ -4525,6 +4528,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/leg_vmc/drv_leg.c.obj: D:/Robomas
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/_ansi.h \
@@ -4657,6 +4661,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/leg_wbr/leg_wbr.c.obj: D:/Robomas
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/_ansi.h \
@@ -4929,6 +4934,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/motor/DM_motor/DM_Motor.c.obj: D:
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/_ansi.h \
@@ -5071,6 +5077,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/motor/HT_motor/ht04.c.obj: D:/Rob
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/_ansi.h \
@@ -5213,6 +5220,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/motor/LK_motor/lk_motor.c.obj: D:
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/_ansi.h \
@@ -5358,6 +5366,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/motor/UNITREE_Motor_485/485driver
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/lib/gcc/arm-none-eabi/10.3.1/include/stdint.h
 
 CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.c.obj: D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.c \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Core/Inc/FreeRTOSConfig.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Core/Inc/main.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Core/Inc/stm32h7xx_hal_conf.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Core/Inc/usart.h \
@@ -5398,6 +5407,19 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/motor/UNITREE_Motor_485/USER_Driv
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_uart_ex.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_ll_usb.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Middlewares/Third_Party/FreeRTOS/Source/include/deprecated_definitions.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Middlewares/Third_Party/FreeRTOS/Source/include/list.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Middlewares/Third_Party/FreeRTOS/Source/include/mpu_wrappers.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Middlewares/Third_Party/FreeRTOS/Source/include/portable.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Middlewares/Third_Party/FreeRTOS/Source/include/queue.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Middlewares/Third_Party/FreeRTOS/Source/include/task.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Middlewares/Third_Party/FreeRTOS/Source/include/timers.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/Middlewares/Third_Party/FreeRTOS/Source/portable/GCC/ARM_CM4F/portmacro.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/485driver/motor_control.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/485driver/ris_protocol.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
@@ -5413,6 +5435,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/motor/UNITREE_Motor_485/USER_Driv
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/machine/types.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/math.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/newlib.h \
+  D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/reent.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/stdint.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/stdio.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/stdlib.h \
@@ -5676,6 +5699,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/rc/Keyboard/keyboard.c.obj: D:/Ro
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/_ansi.h \
@@ -5931,6 +5955,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/robot.c.obj: D:/Robomaster/new_mecanum_fp
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/rm_config.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/robot.h \
@@ -6073,6 +6098,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/task/Lifter/lifter_task.c.obj: D:/Robomas
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/Lifter/lifter_task.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
@@ -6215,6 +6241,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/task/chassis/chassis_task.c.obj: D:/Robom
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
@@ -6357,6 +6384,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/task/cmd/cmd_task.c.obj: D:/Robomaster/ne
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/cmd/cmd_task.h \
@@ -6499,6 +6527,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/task/gimbal/gimbal_task.c.obj: D:/Robomas
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/gimbal/gimbal_task.h \
@@ -6641,6 +6670,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/task/ins/ins_task.c.obj: D:/Robomaster/ne
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/ins/ins_task.h \
@@ -6772,6 +6802,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/task/motor/motor_task.c.obj: D:/Robomaste
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/motor/motor_task.h \
@@ -6894,6 +6925,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/task/rm_task.c.obj: D:/Robomaster/new_mec
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/Lifter/lifter_task.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
@@ -7035,6 +7067,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/task/shoot/shoot_task.c.obj: D:/Robomaste
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/shoot/shoot_task.h \
@@ -7173,6 +7206,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/task/trans/trans_task.c.obj: D:/Robomaste
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/gimbal/gimbal_task.h \
@@ -7300,6 +7334,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/task/uart/uart_receive.c.obj: D:/Robomast
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h \
+  D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/chassis/chassis_task.h \
   D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/task/uart/uart_receive.h \
@@ -7637,6 +7672,8 @@ D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.h:
 
 D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Dbus/rc_dbus.h:
 
+D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h:
+
 D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/referee/referee_system.h:
 
 D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/sys/errno.h:
@@ -7878,8 +7915,6 @@ D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_
 D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/motor/UNITREE_Motor_485/USER_Driver/unitree_motor.c:
 
 D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.c:
-
-D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/rc/Keyboard/keyboard.h:
 
 D:/Robomaster/new_mecanum_fpid/HNU_Embedded_Framework/src/modules/ws2812b/ws2812.c:
 

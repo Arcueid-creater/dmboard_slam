@@ -8,7 +8,7 @@
  */
 #ifndef CHASSIS_TASK_H
 #define CHASSIS_TASK_H
-
+void ChassisTask_Entry(void const * argument);
 /**
  * @brief 底盘模式
  */
@@ -25,7 +25,9 @@ typedef enum
     CHASSIS_FOLLOW_GIMBAL, //底盘跟随云台
     CHASSIS_SPIN,          //底盘陀螺模式
     CHASSIS_FLY,           //底盘飞坡模式
-    CHASSIS_AUTO           //底盘自动模式
+    CHASSIS_AUTO,          //底盘自动模式
+    CHASSIS_NO_GIMBAL,
+    CHASSIS_RETURN,
 } chassis_mode_e;
 
 /**

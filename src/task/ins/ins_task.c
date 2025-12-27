@@ -146,7 +146,7 @@ void ins_control()
     }
 
     count++;
-    vTaskDelayUntil(&ins_wake_time, 1);
+    // vTaskDelayUntil(&ins_wake_time, 1);
 }
 static uint8_t imu_flag=0;
 void dm_imu_control(){
@@ -167,7 +167,7 @@ void dm_imu_control(){
 }
 void ins_control_task(){
     ins_control();
-    dm_imu_control();
+    // dm_imu_control();
 }
 /**
  * @brief 初始化 ins 解算系统

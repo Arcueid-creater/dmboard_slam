@@ -50,13 +50,13 @@ static char cmd_dt_str[16], motor_dt_str[16], chassis_dt_str[16],
     osThreadDef(transtask, trans_task_entry, osPriorityNormal, 0, 1024);
     transTaskHandle = osThreadCreate(osThread(transtask), NULL);
 
-    osThreadDef(shoottask, shoot_task_entry, osPriorityNormal, 0, 1024);
-    shootTaskHandle = osThreadCreate(osThread(shoottask), NULL);
+    // osThreadDef(shoottask, shoot_task_entry, osPriorityNormal, 0, 1024);
+    // shootTaskHandle = osThreadCreate(osThread(shoottask), NULL);
 
-     osThreadDef(lifter_task, LifterTask_entry, osPriorityAboveNormal, 0, 2048);
-     lifterTaskHandle = osThreadCreate(osThread(lifter_task), NULL);
+     // osThreadDef(lifter_task, LifterTask_entry, osPriorityAboveNormal, 0, 2048);
+     // lifterTaskHandle = osThreadCreate(osThread(lifter_task), NULL);
 
-     osThreadDef(uart_task,USARTRecTask_Entry,osPriorityAboveNormal,0,2048);
+     osThreadDef(uart_task,USARTRecTask_Entry,osPriorityAboveNormal,0,1024);
      uartTaskHandle=osThreadCreate(osThread(uart_task), NULL);
 //    osThreadDef(refereetask, referee_task_entry, osPriorityNormal, 0, 1024);
 //    refereeTaskHandle = osThreadCreate(osThread(refereetask), NULL);
@@ -85,7 +85,7 @@ __attribute__((noreturn))  void LifterTask_entry (void const *argument)
 
          lifter_control_task();
 
-         vTaskDelayUntil(&lifter_waste_time, 5);
+         vTaskDelayUntil(&lifter_waste_time, 1);
      }
  }
 int motor_tim=0;
@@ -108,10 +108,10 @@ __attribute__((noreturn))  void motor_task_entry(void const *argument)
 
 /* ------------------------------ 调试监测线程调度 ------------------------------ */
 
-        // motor_control_task();
+        motor_control_task();
         //
-
-        vTaskDelayUntil(&motor_wake_time, 5);
+        // dji_motor_control();
+        vTaskDelayUntil(&motor_wake_time, 1);
     }
 }
 int chassis_tim=0;
@@ -135,7 +135,7 @@ __attribute__((noreturn))  void chassis_task_entry(void const *argument)
 /* ------------------------------ 调试监测线程调度 ------------------------------ */
 
         chassis_control_task();
-
+        // dji_motor_control();
         vTaskDelayUntil(&chassis_wake_time, 1);  // 平衡步兵需要1khz
     }
 }

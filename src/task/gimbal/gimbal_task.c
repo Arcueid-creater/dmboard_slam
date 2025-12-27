@@ -49,9 +49,10 @@ static struct gimbal_controller_t{
 motor_config_t gimbal_motor_config[GIM_MOTOR_NUM] = {
         {
                 .motor_type = DM4310,
-                .can_id = CAN_ID_CHASSIS_MOTOR,
-                .rx_id = YAW_MOTOR_ID,
-                .controller = &gim_controller[YAW],
+                .can_id = CAN_ID_GIMBAL_MOTOR,
+                .rx_id = 0x10,
+                .tx_id = 0x01,
+                // .controller = &gim_controller[YAW],
         },
         {
                 .motor_type = GM6020,   //英雄pitch轴改用丝杆结构，换用3508电机
@@ -90,8 +91,8 @@ static float gim_dt;
 void gimbal_task_init(void){
     gimbal_sub_init();
     gimbal_motor_init();
-    yaw_ramp = ramp_register(0, BACK_CENTER_TIME/GIMBAL_PERIOD);
-    pit_ramp = ramp_register(0, BACK_CENTER_TIME/GIMBAL_PERIOD);
+    // yaw_ramp = ramp_register(0, BACK_CENTER_TIME/GIMBAL_PERIOD);
+    // pit_ramp = ramp_register(0, BACK_CENTER_TIME/GIMBAL_PERIOD);
 
 }
 
@@ -220,12 +221,52 @@ void gimbal_control()
 void gimbal_control_task(){
     /* 更新该线程所有的订阅者 */
     gimbal_sub_pull();
-    gimbal_control();
+    // gimbal_control();
     /* 更新发布该线程的msg */
     gimbal_pub_push();
 
 }
+static float control_dt[4];
+static float control_start[4];
+static float dm_send_t[4];
+float dm_obs[4];
+#define DM_RATIO 1.0f
+#define DM_OUTPUT_LIMIT  10.0f
+static void motor_enable()
+{
+    dm_motor_enable_all();  // 所有电机进入 motor 模式
 
+        dm_motor_set_type(gim_motor_yaw[0], MOTOR_ENALBED);
+
+
+}
+float dm_t1=0;
+static dm_motor_para_t dm_control_1(dm_motor_measure_t measure)
+{
+    control_dt[0] = dwt_get_time_us() - control_start[0];
+    control_start[0] = dwt_get_time_us();
+    static dm_motor_para_t set;
+
+    //    dm_send_t[0] = WBR_T_L[1] * DM_RATIO;
+    dm_send_t[0] = 0;
+    LIMIT_MIN_MAX(dm_send_t[0], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
+    dm_obs[0] = dm_send_t[0] ;
+
+
+#ifdef DM8009P_SET_ZERO
+    dm_send_t[0] = dm_t1;
+#endif
+
+    LIMIT_MIN_MAX(dm_send_t[0], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
+    {
+        set.p = 0;
+        set.kp = 0;
+        set.v = 0;
+        set.kd = 0;
+        set.t = dm_send_t[0]; // 正负没问题
+    }
+    return set;
+}
 /* ------------------------------------------------ 云台控制相关 ----------------------------------------------------- */
 /**
  * @brief 注册云台电机及其控制器初始化
@@ -233,40 +274,9 @@ void gimbal_control_task(){
 static void gimbal_motor_init()
 {
 /* ----------------------------------- yaw ---------------------------------- */
-    pid_config_t yaw_speed_imu_config = INIT_PID_CONFIG(YAW_KP_V_IMU, YAW_KI_V_IMU, YAW_KD_V_IMU, YAW_INTEGRAL_V_IMU, YAW_MAX_V_IMU,
-                                                        (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
-    pid_config_t yaw_angle_imu_config = INIT_PID_CONFIG(YAW_KP_A_IMU, YAW_KI_A_IMU, YAW_KD_A_IMU, YAW_INTEGRAL_A_IMU, YAW_MAX_A_IMU,
-                                                        (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
-
-    // TODO: 自瞄模式参数待调
-    pid_config_t yaw_speed_auto_config = INIT_PID_CONFIG(YAW_KP_V_AUTO, YAW_KI_V_AUTO, YAW_KD_V_AUTO, YAW_INTEGRAL_V_AUTO, YAW_MAX_V_AUTO,
-                                                         (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
-    pid_config_t yaw_angle_auto_config = INIT_PID_CONFIG(YAW_KP_A_AUTO, YAW_KI_A_AUTO, YAW_KD_A_AUTO, YAW_INTEGRAL_A_AUTO, YAW_MAX_A_AUTO,
-                                                         (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
-
-    gim_controller[YAW].pid_speed_imu = pid_register(&yaw_speed_imu_config);
-    gim_controller[YAW].pid_angle_imu = pid_register(&yaw_angle_imu_config);
-    gim_controller[YAW].pid_speed_auto = pid_register(&yaw_speed_auto_config);
-    gim_controller[YAW].pid_angle_auto = pid_register(&yaw_angle_auto_config);
-    gim_motor_yaw[0] = dm_motor_register(&gimbal_motor_config[YAW], motor_control_yaw);
-
-/* ---------------------------------- pitch --------------------------------- */
-    pid_config_t pitch_speed_imu_config = INIT_PID_CONFIG(PITCH_KP_V_IMU, PITCH_KI_V_IMU, PITCH_KD_V_IMU, PITCH_INTEGRAL_V_IMU, PITCH_MAX_V_IMU,
-                                                          (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
-    pid_config_t pitch_angle_imu_config = INIT_PID_CONFIG(PITCH_KP_A_IMU, PITCH_KI_A_IMU, PITCH_KD_A_IMU, PITCH_INTEGRAL_A_IMU, PITCH_MAX_A_IMU,
-                                                          (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
-
-    // TODO: 自瞄模式参数待调
-    pid_config_t pitch_speed_auto_config = INIT_PID_CONFIG(PITCH_KP_V_AUTO, PITCH_KI_V_AUTO, PITCH_KD_V_AUTO, PITCH_INTEGRAL_V_AUTO, PITCH_MAX_V_AUTO,
-                                                           (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
-    pid_config_t pitch_angle_auto_config = INIT_PID_CONFIG(PITCH_KP_A_AUTO, PITCH_KI_A_AUTO, PITCH_KD_A_AUTO, PITCH_INTEGRAL_A_AUTO, PITCH_MAX_A_AUTO,
-                                                           (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
-
-    gim_controller[PITCH].pid_speed_imu = pid_register(&pitch_speed_imu_config);
-    gim_controller[PITCH].pid_angle_imu = pid_register(&pitch_angle_imu_config);
-    gim_controller[PITCH].pid_speed_auto = pid_register(&pitch_speed_auto_config);
-    gim_controller[PITCH].pid_angle_auto = pid_register(&pitch_angle_auto_config);
-    gim_motor_pitch[0] = dji_motor_register(&gimbal_motor_config[PITCH], motor_control_pitch);
+    gim_motor_yaw[0]=dm_motor_register(&gimbal_motor_config[0],dm_control_1);
+    // dm_motor_enable_all();  // 所有电机进入 motor 模式
+    motor_enable();
 }
 int16_t test_speed_yaw, test_speed_pitch=0;
 static int16_t motor_control_yaw(dji_motor_measure_t measure){

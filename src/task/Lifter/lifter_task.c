@@ -53,6 +53,12 @@ static struct lifter_controller_t
 {
     pid_obj_t *speed_pid;
 }lifter_pid_controller [4];
+static struct lifter_angle_t
+{
+    pid_obj_t *pitch_pid ;
+    pid_obj_t *roll_pid ;
+}lifter_angle_controller[4] ;
+pid_obj_t *z_accel_controller  ;
 // ========== 卡尔曼滤波器常量 ==========
 #define HEIGHT_KF_STATE_DIM 2  // 状态维度：[h, dh]
 #define HEIGHT_KF_CTRL_DIM  0  // 无控制输入
@@ -66,7 +72,7 @@ static struct lifter_controller_t
 #define LIFTER2_MAX_ANGLE 9.55365467f
 #define LIFTER3_MIN_ANGLE 2.20376015f
 #define LIFTER3_MAX_ANGLE (-3.0234834f)
-float MOTOR_POS_OFFSET[4] = {5.72444582f, -1.06094193f, -0.716945946f, 7.101964000f}; // 电机位置零点偏移 (根据实际调试设置)
+float MOTOR_POS_OFFSET[4] = {9.77320576f, -1.06094193f, -0.00222427733f, 7.101964000f}; // 电机位置零点偏移 (根据实际调试设置)
 
 // ========函数的声明========
 
@@ -81,12 +87,12 @@ void LifterInit(void)
 {
     lifter_pub_init();
     lifter_sub_init();
-
+    lifter_motor_init();
     // 初始化升降控制器
     Lifter_Init(&g_lifter_ctrl);
 
     // 初始化并注册电机
-    lifter_motor_init();
+
 }
 
 int lifter_ = 0;
@@ -172,7 +178,7 @@ static void LifterCtrl_StateHander()
             // SetRefState(&g_lifter_ctrl,lifter_cmd);
             break;
         case LIFTER_HEIGHT_INIT:
-            if (fabs(g_lifter_ctrl.state.h - g_lifter_ctrl.state.h_ref <= 0.05f)) //小于等于5cm
+            if (fabs(g_lifter_ctrl.state.h - g_lifter_ctrl.state.h_ref <= 0.01f)) //小于等于5cm
             {
                 lifter_fdb.back_mode = LIFTER_BACK_IS_OK; //完成归中
             } else
@@ -345,7 +351,7 @@ static void motor_control_0(unitree_motor_object_t *motor)
     VAL_LIMIT(torque,-1.0f,1.0f);
     // 设置电机控制参数（纯力矩控制模式：kp=0, kd=0）
     // pos=0, vel=0, tor=目标力矩, kp=0, kd=0
-    unitree_motor_set_control(motor, 0.0f, 0.0f, torque, 0.0f, 0.01f);
+    unitree_motor_set_control(motor, 0.0f, 0.0f, torque, 0.0f, lifter_cmd.Kd);
 }
 
 /**
@@ -365,7 +371,7 @@ static void motor_control_1(unitree_motor_object_t *motor)
     VAL_LIMIT(torque,-1.0f,1.0f);
     // 设置电机控制参数（纯力矩控制模式：kp=0, kd=0）
     // pos=0, vel=0, tor=目标力矩, kp=0, kd=0
-    unitree_motor_set_control(motor, 0.0f, 0.0f, torque, 0.0f, 0.01f);
+    unitree_motor_set_control(motor, 0.0f, 0.0f, torque, 0.0f, lifter_cmd.Kd);
 }
 
 /**
@@ -385,7 +391,7 @@ static void motor_control_2(unitree_motor_object_t *motor)
     VAL_LIMIT(torque,-1.0f,1.0f);
     // 设置电机控制参数（纯力矩控制模式：kp=0, kd=0）
     // pos=0, vel=0, tor=目标力矩, kp=0, kd=0
-    unitree_motor_set_control(motor, 0.0f, 0.0f, torque, 0.0f, 0.01f);
+    unitree_motor_set_control(motor, 0.0f, 0.0f, torque, 0.0f, lifter_cmd.Kd);
 }
 
 /**
@@ -405,7 +411,7 @@ static void motor_control_3(unitree_motor_object_t *motor)
     VAL_LIMIT(torque,-1.0f,1.0f);
     // 设置电机控制参数（纯力矩控制模式：kp=0, kd=0）
     // pos=0, vel=0, tor=目标力矩, kp=0, kd=0
-    unitree_motor_set_control(motor, 0.0f, 0.0f, torque, 0.0f, 0.01f);
+    unitree_motor_set_control(motor, 0.0f, 0.0f, torque, 0.0f, lifter_cmd.Kd);
 }
 
 /**
@@ -490,19 +496,60 @@ static void (*motor_control[4])(unitree_motor_object_t *) = {
     }
      pid_config_t lifter_pid_config  = INIT_PID_CONFIG(LIFTER_KP_V_MOTOR, LIFTER_KI_V_MOTOR, LIFTER_KD_V_MOTOR, LIFTER_INTEGRAL_V_MOTOR, LIFTER_MAX_V_MOTOR,
                                                       (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
-
+     pid_config_t lifter_pitch_config =INIT_PID_CONFIG(LIFTER_KP_PA_MOTOR, LIFTER_KI_PA_MOTOR, LIFTER_KD_PA_MOTOR, LIFTER_INTEGRAL_PA_MOTOR, LIFTER_MAX_PA_MOTOR,
+                                                      (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+     pid_config_t lifter_roll_config =INIT_PID_CONFIG(LIFTER_KP_RA_MOTOR, LIFTER_KI_RA_MOTOR, LIFTER_KD_RA_MOTOR, LIFTER_INTEGRAL_RA_MOTOR, LIFTER_MAX_RA_MOTOR,
+                                                      (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+     pid_config_t lifter_z_config=INIT_PID_CONFIG(LIFTER_KP_Z_MOTOR, LIFTER_KI_Z_MOTOR, LIFTER_KD_Z_MOTOR, LIFTER_INTEGRAL_Z_MOTOR, LIFTER_MAX_Z_MOTOR,
+                                                      (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+     z_accel_controller=pid_register(&lifter_z_config);
      for (uint8_t j = 0; j < 4; j++)
      {
          lifter_pid_controller[j].speed_pid = pid_register(&lifter_pid_config );
+         lifter_angle_controller[j].pitch_pid = pid_register(&lifter_pitch_config  );
+         lifter_angle_controller[j].roll_pid = pid_register(&lifter_roll_config  );
      }
 }
 ////TODO 为后续添加控制底盘倾角的功能 ，目前只能改变底盘高度和速度
 /**/
 
-
+int shuipin=1;
 void SetRefState(LifterController_t *lifter,struct lifter_cmd_msg cmd)
 {
-     GetTargetHeight(lifter,cmd);
+     FK_FootPosition(&lifter->mechanism,
+                         cmd.target_angle,
+                         &lifter->state.x_ref,
+                         &lifter->state.h_ref);
+     lifter->state.h_ref=lifter->state.h_ref/1000;
+
+     float J11, J21;
+
+     Jacobian_Compute(&lifter->mechanism, cmd.dTarget_angle, &J11, &J21);
+     lifter->state.dh_ref = J21*cmd.dTarget_angle;
+     for (int i = 0; i < 4; i++)
+     {
+         lifter->leg.ref_joint_angle[i] = cmd.target_angle;
+     }
+    if (shuipin == 1)
+    {
+        lifter->leg.ref_joint_angle[0]+=pid_calculate(lifter_angle_controller[0].pitch_pid,ins_data.pitch,0)
+                                    -pid_calculate(lifter_angle_controller[0].roll_pid,ins_data.roll,0);
+
+        lifter->leg.ref_joint_angle[1]+=pid_calculate(lifter_angle_controller[1].pitch_pid,ins_data.pitch,0)
+                                       +pid_calculate(lifter_angle_controller[1].roll_pid,ins_data.roll,0);
+
+        lifter->leg.ref_joint_angle[2]+=-pid_calculate(lifter_angle_controller[2].pitch_pid,ins_data.pitch,0)
+                                       -pid_calculate(lifter_angle_controller[2].roll_pid,ins_data.roll,0);
+
+        lifter->leg.ref_joint_angle[3]+=-pid_calculate(lifter_angle_controller[3].pitch_pid,ins_data.pitch,0)
+                                       +pid_calculate(lifter_angle_controller[3].roll_pid,ins_data.roll,0);
+
+    }
+
+     for (int i = 0; i < 4; i++)
+     {
+         VAL_LIMIT(lifter->leg.ref_joint_angle[i],-20.0f,35.0f);
+     }
      lifter->enable=cmd.enable;
     // lifter->state.h_ref=cmd.height;
     // lifter->state.dh_ref=cmd.d_height;
@@ -657,7 +704,7 @@ void Lifter_UpdateState(LifterController_t *lifter)
  * @brief 初始化升降控制器
  * @param lifter 升降控制器
  */
-void Lifter_Init(LifterController_t *lifter)
+static void Lifter_Init(LifterController_t *lifter)
 {
     memset(lifter, 0, sizeof(LifterController_t));
     

@@ -13,7 +13,7 @@
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-
+#include <cmsis_os.h>
 /* 全局电机对象数组 */
 static unitree_motor_object_t *unitree_motor_obj[UNITREE_MOTOR_CNT] = {NULL};
 static uint8_t motor_idx = 0; // 已注册的电机数量
@@ -114,7 +114,7 @@ unitree_motor_object_t* unitree_motor_register(unitree_motor_config_t *config,
     }
     
     // 分配内存
-    unitree_motor_object_t *motor = (unitree_motor_object_t *)malloc(sizeof(unitree_motor_object_t));
+    unitree_motor_object_t *motor = (unitree_motor_object_t *)pvPortMalloc(sizeof(unitree_motor_object_t));
     if (motor == NULL) {
         printf("[UNITREE_MOTOR] Error: Memory allocation failed!\r\n");
         return NULL;

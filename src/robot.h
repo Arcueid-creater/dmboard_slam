@@ -116,6 +116,8 @@ struct chassis_fdb_msg
 {
     float x_pos_gim;
     float y_pos_gim;
+    float spin_flag;
+    float spin_yaw_offset;
     float vw_ch;  // 底盘旋转速度
 };
 typedef enum
@@ -156,6 +158,7 @@ struct lifter_cmd_msg
     float target_angle;
     float dTarget_angle ;
     int enable;
+    float Kd;
     lifter_mode_e ctrl_mode;
     lifter_mode_e last_mode;
 };

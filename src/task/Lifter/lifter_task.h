@@ -115,7 +115,7 @@ typedef struct {
 
 
 // 初始化函数
-void Lifter_Init(LifterController_t *lifter);
+static void Lifter_Init(LifterController_t *lifter);
 
 // 多项式相关函数
 float Poly_Eval(const float *coeff, int order, float x);

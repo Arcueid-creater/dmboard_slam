@@ -34,5 +34,5 @@
 #include "dm_imu.h"
 #include "dm_imu.h"
 #include "unitree_motor.h"
-
+#include "keyboard.h"
 #endif /* _RM_MODULE_H */
