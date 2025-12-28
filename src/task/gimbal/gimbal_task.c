@@ -8,8 +8,8 @@
 #include "rm_module.h"
 #include "rm_algorithm.h"
 #define GIM_PITCH_MOTOR_NUM 1
-#define GIM_YAW_MOTOR_NUM 1
-#define GIM_MOTOR_NUM 2
+#define GIM_YAW_MOTOR_NUM 3
+#define GIM_MOTOR_NUM 3
 /* ----------------------------------------------- 线程间通讯话题相关 ---------------------------------------------------- */
 
 // 订阅
@@ -55,10 +55,19 @@ motor_config_t gimbal_motor_config[GIM_MOTOR_NUM] = {
                 // .controller = &gim_controller[YAW],
         },
         {
-                .motor_type = GM6020,   //英雄pitch轴改用丝杆结构，换用3508电机
+                .motor_type = DM4310,   //英雄pitch轴改用丝杆结构，换用3508电机
                 .can_id = CAN_ID_GIMBAL_MOTOR,
-                .rx_id = PITCH_MOTOR_ID,   //电机ID待定
-                .controller = &gim_controller[PITCH],
+                .rx_id = 0x10,   //电机ID待定
+                // .controller = &gim_controller[PITCH],
+                .tx_id = 0x02,
+
+        },
+        {
+            .motor_type = DM4310,
+            .can_id = CAN_ID_GIMBAL_MOTOR,
+            .rx_id = 0x10,
+            .tx_id = 0x03,
+            // .controller = &gim_controller[YAW],
         }
 };
 
@@ -217,12 +226,15 @@ void gimbal_control()
     gim_dt = dwt_get_time_ms() - gim_start;
     // vTaskDelay(1);
 }
-
+uint8_t data[8];
 void gimbal_control_task(){
     /* 更新该线程所有的订阅者 */
     gimbal_sub_pull();
     // gimbal_control();
     /* 更新发布该线程的msg */
+    data[0] = 110;
+    data[1] = 55;
+    CAN_send(&hfdcan2,0x110,data);
     gimbal_pub_push();
 
 }
@@ -236,25 +248,32 @@ static void motor_enable()
 {
     dm_motor_enable_all();  // 所有电机进入 motor 模式
 
-        dm_motor_set_type(gim_motor_yaw[0], MOTOR_ENALBED);
+
 
 
 }
-float dm_t1=0;
+static float control_dt[4];
+static float control_start[4];
+static float dm_send_t[4]={0};
+float dm_obs[4];
+#define DM_RATIO 1.0f
+#define DM_OUTPUT_LIMIT  10.0f
+
+/*目前是以护栏较窄的一侧为正方向,从正方向向后看去,rigdm_front:id 2 ; rigdm_back:id 3;left_front:id 1;left_back:id 4*/
+/* 1 号电机 */
 static dm_motor_para_t dm_control_1(dm_motor_measure_t measure)
 {
     control_dt[0] = dwt_get_time_us() - control_start[0];
     control_start[0] = dwt_get_time_us();
     static dm_motor_para_t set;
 
-    //    dm_send_t[0] = WBR_T_L[1] * DM_RATIO;
-    dm_send_t[0] = 0;
+//    dm_send_t[0] = WBR_T_L[1] * DM_RATIO;
+    // dm_send_t[0] = 0;
     LIMIT_MIN_MAX(dm_send_t[0], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
     dm_obs[0] = dm_send_t[0] ;
 
-
 #ifdef DM8009P_SET_ZERO
-    dm_send_t[0] = dm_t1;
+        dm_send_t[0] = 0;
 #endif
 
     LIMIT_MIN_MAX(dm_send_t[0], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
@@ -267,6 +286,100 @@ static dm_motor_para_t dm_control_1(dm_motor_measure_t measure)
     }
     return set;
 }
+/* 2 号电机 */
+static dm_motor_para_t dm_control_2(dm_motor_measure_t measure)
+{
+    control_dt[1] = dwt_get_time_us() - control_start[1];
+    control_start[1] = dwt_get_time_us();
+    static dm_motor_para_t set;
+
+
+//    dm_send_t[1] = -WBR_T_R[1] * DM_RATIO;
+    // dm_send_t[1] = 0;
+    LIMIT_MIN_MAX(dm_send_t[1], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
+    dm_obs[1] = dm_send_t[1] ;
+
+
+
+#ifdef DM8009P_SET_ZERO
+        dm_send_t[1] = 0;
+#endif
+
+    LIMIT_MIN_MAX(dm_send_t[1], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
+    {
+        set.p = 0;
+        set.kp = 0;
+        set.v = 0;
+        set.kd = 0;
+        set.t = dm_send_t[1]; // 正负没问题
+    }
+    return set;
+}
+/* 3 号电机 */
+static dm_motor_para_t dm_control_3(dm_motor_measure_t measure)
+{
+    control_dt[2] = dwt_get_time_us() - control_start[2];
+    control_start[2] = dwt_get_time_us();
+    static dm_motor_para_t set;
+
+//    dm_send_t[2] = -WBR_T_R[0] * DM_RATIO ;
+    // dm_send_t[2] = 0;
+    LIMIT_MIN_MAX(dm_send_t[2], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
+    dm_obs[2] = dm_send_t[2] ;
+
+
+#ifdef DM8009P_SET_ZERO
+        dm_send_t[2] = 0;
+#endif
+
+    LIMIT_MIN_MAX(dm_send_t[2], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
+    {
+        set.p = 0;
+        set.kp = 0;
+        set.v = 0;
+        set.kd = 0;
+        set.t = dm_send_t[2]; // 正负没问题
+    }
+    return set;
+}
+/* 4 号电机 */
+static dm_motor_para_t dm_control_4(dm_motor_measure_t measure)
+{
+    control_dt[3] = dwt_get_time_us() - control_start[3];
+    control_start[3] = dwt_get_time_us();
+    static dm_motor_para_t set;
+
+    // 每次上电归中电机给定一个适当的力矩，并持续，确保撞到限位
+
+//    dm_send_t[3] = WBR_T_L[0] * DM_RATIO;
+    // dm_send_t[3] = 0;
+    LIMIT_MIN_MAX(dm_send_t[3], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
+    dm_obs[3] = dm_send_t[3];
+
+
+#ifdef DM8009P_SET_ZERO
+    dm_send_t[3] = 0;
+
+#endif
+
+    LIMIT_MIN_MAX(dm_send_t[3], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
+    {
+        set.p = 0;
+        set.kp = 0;
+        set.v = 0;
+        set.kd = 0;
+        set.t = dm_send_t[3]; // 正负没问题
+    }
+    return set;
+}
+/* 底盘每个电机对应的控制函数 */
+static void *dm_control[4] =
+        {
+                dm_control_1,
+                dm_control_2,
+                dm_control_3,
+                dm_control_4,
+        };
 /* ------------------------------------------------ 云台控制相关 ----------------------------------------------------- */
 /**
  * @brief 注册云台电机及其控制器初始化
@@ -274,7 +387,10 @@ static dm_motor_para_t dm_control_1(dm_motor_measure_t measure)
 static void gimbal_motor_init()
 {
 /* ----------------------------------- yaw ---------------------------------- */
-    gim_motor_yaw[0]=dm_motor_register(&gimbal_motor_config[0],dm_control_1);
+    for (int i=0; i<3; i++)
+    {
+        gim_motor_yaw[i]=dm_motor_register(&gimbal_motor_config[i],dm_control[i]);
+    }
     // dm_motor_enable_all();  // 所有电机进入 motor 模式
     motor_enable();
 }

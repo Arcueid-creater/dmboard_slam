@@ -9,10 +9,10 @@
 
 #define Motar_mode 0	//设置模式为何种模式，为0为IMT模式，为1为位置速度模式，为2为速度模式
 
-#define DM_P_MIN -12.5		//位置最小值
-#define DM_P_MAX 12.5		//位置最大值
-#define DM_V_MIN -30			//速度最小值
-#define DM_V_MAX 30			//速度最大值
+#define DM_P_MIN -7		//位置最小值
+#define DM_P_MAX 7		//位置最大值
+#define DM_V_MIN -20			//速度最小值
+#define DM_V_MAX 20			//速度最大值
 //#define DM_KP_MIN 0.0		//Kp最小值
 //#define DM_KP_MAX 54.0	//Kp最大值,目前根据上位机控制设置中读取的值设定,实际mit模式下位置和速度基本不起作用,主要为力矩T
 #define DM_KP_MIN 0		//Kp最小值
@@ -20,8 +20,8 @@
 #define DM_KD_MIN 0.0		//Kd最小值
 //#define DM_KD_MAX 4.0		//Kd最大值
 #define DM_KD_MAX 5		//Kd最大值
-#define DM_T_MIN -10			//转矩最小值
-#define DM_T_MAX 10			//转矩最大值
+#define DM_T_MIN -7			//转矩最小值
+#define DM_T_MAX 7			//转矩最大值
 
 #define DM_SPEED_BIAS 0.0f   //电机速度偏差 rad/s
 /* 滤波系数设置为1的时候即关闭滤波 */

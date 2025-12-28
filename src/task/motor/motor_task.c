@@ -43,6 +43,8 @@ static float can_tim_dt, can_tim_start;
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
     uint8_t data[8]={0};
+    data[0]=13;
+    data[1]=22;
     if (htim->Instance == htim4.Instance)
     {
         can_tim_dt = dwt_get_time_us() - can_tim_start;
@@ -50,6 +52,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
 #ifdef BSP_USING_DM_MOTOR
 
         dm_controll_all_poll();
+
 #endif /* BSP_USING_DM_MOTOR */
 
     }
