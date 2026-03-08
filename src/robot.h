@@ -69,7 +69,8 @@ typedef enum
     GIMBAL_GYRO = 2,         //云台跟随imu闭环
     GIMBAL_AUTO = 3 ,         //云台自瞄
     GIMBAL_NO_FOLLOW=4,
-    GIMBAL_LIFTER=5
+    GIMBAL_LIFTER=5,
+    GIMBAL_RESET=6,
 } gimbal_mode_e;
 
 struct gimbal_cmd_msg
@@ -148,7 +149,9 @@ typedef enum
     LIFTER_FLY,//飞坡
     LIFTER_HEIGHT_CHANGE,//底盘高度变化
     LIFTER_HEIGHT_KEEP, //底盘高度保持不变
-    LIFTER_HEIGHT_INIT//归中模式的底盘高度作为最适合的运动模式
+    LIFTER_HEIGHT_INIT,//归中模式的底盘高度作为最适合的运动模式
+    LIFTER_CLIMB,
+    LIFTER_BACK_UP,
 } lifter_mode_e ;
 
 struct lifter_cmd_msg
@@ -157,6 +160,7 @@ struct lifter_cmd_msg
     float d_height ;//控制速度
     float target_angle;
     float dTarget_angle ;
+    float motor3angel;
     int enable;
     float Kd;
     lifter_mode_e ctrl_mode;
@@ -204,6 +208,7 @@ struct shoot_cmd_msg
     uint8_t cover_open;      // 弹仓盖开关
     uint8_t mirror_enable;     // 倍镜使能开关
     bool friction_status;
+    int friction_on_flag;
 };
 
 /**
@@ -215,6 +220,7 @@ typedef enum
     SHOOT_OK=1,   //发射正常
     SHOOT_ERR=0,  //发射异常
     SHOOT_WAITING=2, //发射异常
+    SHOOT_REVERSE_ING=3,
 } shoot_back_e;
 
 /**
@@ -225,6 +231,7 @@ struct shoot_fdb_msg
     shoot_back_e trigger_status;  // shoot状态反馈
     int16_t trigger_motor_current; //拨弹电机电流，传给cmd控制反转
     int shoot_cnt;
+    int reverse_cnt;
 };
 
 /* ------------------------------ trans解析自瞄数据 ------------------------------ */

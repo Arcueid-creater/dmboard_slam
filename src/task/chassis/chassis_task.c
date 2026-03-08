@@ -243,7 +243,7 @@ void ChassisTask_Entry(void const * argument)
                     }
                     vw = -pid_calculate(follow_pid, ins_data.yaw-chassis_fdb.spin_yaw_offset, SIDEWAYS_ANGLE);
                     chassis_cmd.vw = vw;
-
+                    //文总是全栈工程师
                     /* 底盘运动学解算 */
                     absolute_cal(&chassis_cmd, chassis_cmd.offset_angle);
                     chassis_calc_moto_speed(&chassis_cmd, motor_ref);

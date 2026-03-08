@@ -30,7 +30,7 @@
 #define CAN_CHASSIS_MOTOR hfdcan1
 #define CAN_WHEEL_MOTOR hfdcan2
 #define CAN_ID_WHEEL_MOTOR 2
-#define CAN_ID_GIMBAL_MOTOR 2
+#define CAN_ID_GIMBAL_MOTOR 3
 #define CAN_ID_CHASSIS_MOTOR 1
 #define CAN_ID_FIRE_MOTOR 3
 
@@ -53,6 +53,13 @@
 #define GIMBAL_RC_MOVE_RATIO_YAW 0.5f
 
 /*******************************选择使用的电机*********************************************/
+/*==========================================================伸缩云台相关====================================*/
+#define RC_RATIO    0.0009f
+#define KB_RATIO    0.010f
+#define GIMBAL_PC_MOVE_RATIO_YAW 0.5f
+/* 云台pitch轴速度 */
+#define GIMBAL_PC_MOVE_RATIO_PIT 0.1f
+
 
 #define BSP_USING_DJI_MOTOR
 #define BSP_USING_DM_MOTOR
@@ -64,27 +71,27 @@
 #define LIFTER_AMPLITUDE 0.042f
 #define LIFTER_PERIOD 2000 //ms
 // #define LIFTER_
-#define LIFTER_KP_V_MOTOR 0.0400f
+#define LIFTER_KP_V_MOTOR 0.0500f
 #define LIFTER_KI_V_MOTOR 0.0040f
 #define LIFTER_KD_V_MOTOR 0.0001f
-#define LIFTER_INTEGRAL_V_MOTOR 0.100f
+#define LIFTER_INTEGRAL_V_MOTOR 0.500f
 #define LIFTER_MAX_V_MOTOR 1.800f
-#define LIFTER_KP_PA_MOTOR  5.00f
-#define LIFTER_KI_PA_MOTOR 1.0f
+#define LIFTER_KP_PA_MOTOR  2.500f
+#define LIFTER_KI_PA_MOTOR 0.40f
 #define LIFTER_KD_PA_MOTOR 0.0001f
-#define LIFTER_INTEGRAL_PA_MOTOR 15.0f
-#define LIFTER_MAX_PA_MOTOR 50.0f
+#define LIFTER_INTEGRAL_PA_MOTOR 10.0f
+#define LIFTER_MAX_PA_MOTOR 20.0f
 
-#define LIFTER_KP_RA_MOTOR  1.0f
-#define LIFTER_KI_RA_MOTOR 0.3f
+#define LIFTER_KP_RA_MOTOR  2.500f
+#define LIFTER_KI_RA_MOTOR 0.40f
 #define LIFTER_KD_RA_MOTOR 0.0001f
-#define LIFTER_INTEGRAL_RA_MOTOR 3.0f
-#define LIFTER_MAX_RA_MOTOR 50.0f
+#define LIFTER_INTEGRAL_RA_MOTOR 10.0f
+#define LIFTER_MAX_RA_MOTOR 20.0f
 
-#define LIFTER_KP_Z_MOTOR 0.01f
+#define LIFTER_KP_Z_MOTOR 1.2f
 #define LIFTER_KI_Z_MOTOR 0.001f
 #define LIFTER_KD_Z_MOTOR 0.0001f
-#define LIFTER_INTEGRAL_Z_MOTOR 2.0f
+#define LIFTER_INTEGRAL_Z_MOTOR 5.0f
 #define LIFTER_MAX_Z_MOTOR 50.0f
 /*********************************************************************************/
 
@@ -177,7 +184,7 @@
 // TODO: 实际值待整定
 #define RIGHT_FRICTION_MOTOR_ID     0x201
 #define LEFT_FRICTION_MOTOR_ID   0x202
-#define TRIGGER_MOTOR_ID  0x204 //0x205
+#define TRIGGER_MOTOR_ID  0x205 //0x205
 
 #define FRICTION_SPEED_ONE  6000
 #define FRICTION_SPEED_CONTINUE  6000
@@ -220,17 +227,17 @@
 /* -------------------------------- 云台电机PID参数 ------------------------------- */
 /* 云台yaw轴电机PID参数 */
 /* imu速度环 */
-#define YAW_KP_V_IMU             5000
-#define YAW_KI_V_IMU             200
-#define YAW_KD_V_IMU             10
-#define YAW_INTEGRAL_V_IMU       1000
-#define YAW_MAX_V_IMU            30000
+#define YAW_KP_V_IMU             0.5f
+#define YAW_KI_V_IMU             0
+#define YAW_KD_V_IMU             0.0001f
+#define YAW_INTEGRAL_V_IMU       4.0
+#define YAW_MAX_V_IMU            5.0
 /* imu角度环 */
-#define YAW_KP_A_IMU             0.35f
+#define YAW_KP_A_IMU             3.0
 #define YAW_KI_A_IMU             0
-#define YAW_KD_A_IMU             0.001f
-#define YAW_INTEGRAL_A_IMU       5
-#define YAW_MAX_A_IMU            25
+#define YAW_KD_A_IMU             0.0001
+#define YAW_INTEGRAL_A_IMU       0
+#define YAW_MAX_A_IMU            10
 /* auto速度环 */
 #define YAW_KP_V_AUTO            0
 #define YAW_KI_V_AUTO            0
@@ -246,31 +253,53 @@
 
 /* 云台PITCH轴电机PID参数 */
 /* imu速度环 */
-#define PITCH_KP_V_IMU           4250
-#define PITCH_KI_V_IMU           1000
-#define PITCH_KD_V_IMU           3
-#define PITCH_INTEGRAL_V_IMU     1500
-#define PITCH_MAX_V_IMU          20000
+#define UP_PITCH_KP_V_IMU           0.7f
+#define UP_PITCH_KI_V_IMU           0.32f
+#define UP_PITCH_KD_V_IMU           0.0001f
+#define UP_PITCH_INTEGRAL_V_IMU     3.0f
+#define UP_PITCH_MAX_V_IMU          7.0f
 /* imu角度环 */
-#define PITCH_KP_A_IMU           0.5f
-#define PITCH_KI_A_IMU           0.0f
-#define PITCH_KD_A_IMU           0.005f
-#define PITCH_INTEGRAL_A_IMU     0.2f
-#define PITCH_MAX_A_IMU          20
+#define UP_PITCH_KP_A_IMU           10.0f
+#define UP_PITCH_KI_A_IMU           0.0f
+#define UP_PITCH_KD_A_IMU           0.0001f
+#define UP_PITCH_INTEGRAL_A_IMU     0.0f
+#define UP_PITCH_MAX_A_IMU          5.0f
 /* auto速度环 */
-#define PITCH_KP_V_AUTO          0
-#define PITCH_KI_V_AUTO          0
-#define PITCH_KD_V_AUTO          0
-#define PITCH_INTEGRAL_V_AUTO    0
-#define PITCH_MAX_V_AUTO         0
+#define UP_PITCH_KP_V_AUTO          0
+#define UP_PITCH_KI_V_AUTO          0
+#define UP_PITCH_KD_V_AUTO          0
+#define UP_PITCH_INTEGRAL_V_AUTO    0
+#define UP_PITCH_MAX_V_AUTO         0
 /* auto角度环 */
-#define PITCH_KP_A_AUTO          0
-#define PITCH_KI_A_AUTO          0
-#define PITCH_KD_A_AUTO          0
-#define PITCH_INTEGRAL_A_AUTO    0
-#define PITCH_MAX_A_AUTO         0
+#define UP_PITCH_KP_A_AUTO          0
+#define UP_PITCH_KI_A_AUTO          0
+#define UP_PITCH_KD_A_AUTO          0
+#define UP_PITCH_INTEGRAL_A_AUTO    0
+#define UP_PITCH_MAX_A_AUTO         0
 
-
+#define DN_PITCH_KP_V_IMU           12.0f
+#define DN_PITCH_KI_V_IMU           0.9f
+#define DN_PITCH_KD_V_IMU           0.0001f
+#define DN_PITCH_INTEGRAL_V_IMU     5.00f
+#define DN_PITCH_MAX_V_IMU          7.0f
+/* imu角度环 */
+#define DN_PITCH_KP_A_IMU           10.0f
+#define DN_PITCH_KI_A_IMU           0.0f
+#define DN_PITCH_KD_A_IMU           0.0001f
+#define DN_PITCH_INTEGRAL_A_IMU     0.0f
+#define DN_PITCH_MAX_A_IMU          10.0f
+/* auto速度环 */
+#define DN_PITCH_KP_V_AUTO          0
+#define DN_PITCH_KI_V_AUTO          0
+#define DN_PITCH_KD_V_AUTO          0
+#define DN_PITCH_INTEGRAL_V_AUTO    0
+#define DN_PITCH_MAX_V_AUTO         0
+/* auto角度环 */
+#define DN_PITCH_KP_A_AUTO          0
+#define DN_PITCH_KI_A_AUTO          0
+#define DN_PITCH_KD_A_AUTO          0
+#define DN_PITCH_INTEGRAL_A_AUTO    0
+#define DN_PITCH_MAX_A_AUTO         0
 /***********chassis部分关于length/theta/yaw/roll的pid参数**********************/
 
 ///*位置*/

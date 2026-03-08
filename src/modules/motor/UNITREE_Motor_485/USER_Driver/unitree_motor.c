@@ -269,30 +269,33 @@ void unitree_motor_control(void)
     unitree_motor_object_t *motor;
     
     // 遍历所有已注册的电机
-    for (size_t i = 0; i < motor_idx; i++) {
-        motor = unitree_motor_obj[i];
-        
-        if (motor == NULL) continue;
-        
-        // 如果有控制回调函数，先调用回调
-        if (motor->control_callback != NULL && motor->state == UNITREE_MOTOR_ENABLED) {
-            callbackaaa++;
-            motor->control_callback(motor);
-
-        }
-        
-        // 发送控制指令并接收反馈
-        unitree_motor_send(motor);
-        if (motor->measure.error_cnt>=100)
+    // static uint8_t i;
+        for (int i=0;i<motor_idx;i++)
         {
+            motor = unitree_motor_obj[i];
 
-            // unitree_motor_rs485_reset();
-            motor->measure.error_cnt=0;
-            memset(motor, 0, sizeof(unitree_motor_object_t));
-            Software_Reset();
-            // unitree_motor_rs485_init();
+            if (motor == NULL) return;
+
+            // 如果有控制回调函数，先调用回调
+            if (motor->control_callback != NULL && motor->state == UNITREE_MOTOR_ENABLED) {
+                callbackaaa++;
+                motor->control_callback(motor);
+
+            }
+
+            // 发送控制指令并接收反馈
+            unitree_motor_send(motor);
+
+            if (motor->measure.error_cnt>=100)
+            {
+
+                // unitree_motor_rs485_reset();
+                motor->measure.error_cnt=0;
+                memset(motor, 0, sizeof(unitree_motor_object_t));
+                Software_Reset();
+                // unitree_motor_rs485_init();
+            }
         }
-    }
 }
 
 /**

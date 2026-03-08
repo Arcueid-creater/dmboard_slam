@@ -45,7 +45,13 @@ typedef enum
     DM4310,
     MF9025,
 } motor_type_e;
+typedef enum
+{
 
+    MIT_CFG ,
+    POSITION_SPEED_CFG,
+    SPEED_CFG  ,
+}dm_motor_ctrl_mode ;
 /* 电机配置结构体 */
 typedef struct
 {
@@ -53,6 +59,7 @@ typedef struct
     uint32_t  can_id;              // 电机挂载CAN，CAN1对应1，CAN2对应2
     uint32_t tx_id;                // 发送id(主发)
     uint32_t rx_id;                // 接收id(主收)
+    dm_motor_ctrl_mode ctrl_mode;
     void *controller;              // 电机控制器
     // 最大位置, 与上位机控制幅值PMAX保持一致
     float Angle_Max;

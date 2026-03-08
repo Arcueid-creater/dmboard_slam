@@ -23,6 +23,7 @@ void motor_control_task(void)
 
 #ifdef BSP_USING_DJI_MOTOR
     dji_motor_control();
+    dm_controll_all_poll();
 #endif /* BSP_USING_DJI_MOTOR */
 #ifdef BSP_USING_LK_MOTOR
     lk_motor_control();
@@ -40,18 +41,19 @@ void motor_control_task(void)
 }
 
 static float can_tim_dt, can_tim_start;
-
+int count=0;
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim) {
-    uint8_t data[8]={0};
-    data[0]=13;
-    data[1]=22;
+
     if (htim->Instance == htim4.Instance)
     {
         can_tim_dt = dwt_get_time_us() - can_tim_start;
         can_tim_start = dwt_get_time_us();
 #ifdef BSP_USING_DM_MOTOR
+        // if (count%2==0)
+        // {
+        //     dm_controll_all_poll();
+        // }
 
-        dm_controll_all_poll();
 
 #endif /* BSP_USING_DM_MOTOR */
 

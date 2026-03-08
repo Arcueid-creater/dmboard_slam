@@ -35,11 +35,11 @@ static char cmd_dt_str[16], motor_dt_str[16], chassis_dt_str[16],
     osThreadDef(instask, ins_task_entry, osPriorityNormal, 0, 1024);
     insTaskHandle = osThreadCreate(osThread(instask), NULL); // 为姿态解算设置较高优先级,确保以1khz的频率执行
 
-    osThreadDef(motortask, motor_task_entry,osPriorityNormal , 0, 2048);
+    osThreadDef(motortask, motor_task_entry,osPriorityAboveNormal , 0, 2048);
     motorTaskHandle = osThreadCreate(osThread(motortask), NULL);
 
-    osThreadDef(chassistask, chassis_task_entry, osPriorityNormal, 0, 2048);
-    chassisTaskHandle = osThreadCreate(osThread(chassistask), NULL);
+    // osThreadDef(chassistask, chassis_task_entry, osPriorityNormal, 0, 2048);
+    // chassisTaskHandle = osThreadCreate(osThread(chassistask), NULL);
 
     osThreadDef(cmdtask, cmd_task_entry, osPriorityNormal, 0, 1024);
     cmdTaskHandle = osThreadCreate(osThread(cmdtask), NULL);
@@ -50,8 +50,8 @@ static char cmd_dt_str[16], motor_dt_str[16], chassis_dt_str[16],
     osThreadDef(transtask, trans_task_entry, osPriorityNormal, 0, 1024);
     transTaskHandle = osThreadCreate(osThread(transtask), NULL);
 
-    // osThreadDef(shoottask, shoot_task_entry, osPriorityNormal, 0, 1024);
-    // shootTaskHandle = osThreadCreate(osThread(shoottask), NULL);
+    osThreadDef(shoottask, shoot_task_entry, osPriorityNormal, 0, 1024);
+    shootTaskHandle = osThreadCreate(osThread(shoottask), NULL);
 
      // osThreadDef(lifter_task, LifterTask_entry, osPriorityAboveNormal, 0, 2048);
      // lifterTaskHandle = osThreadCreate(osThread(lifter_task), NULL);

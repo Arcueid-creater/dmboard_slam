@@ -199,6 +199,9 @@ void IMU_UpdateGyro(uint8_t* pData)
     imu_object.gyro[0]=uint_to_float(gyro[0],GYRO_CAN_MIN,GYRO_CAN_MAX,16);
     imu_object.gyro[1]=uint_to_float(gyro[1],GYRO_CAN_MIN,GYRO_CAN_MAX,16);
     imu_object.gyro[2]=uint_to_float(gyro[2],GYRO_CAN_MIN,GYRO_CAN_MAX,16);
+    // 0 roll
+    // 1 yaw
+    // 2 pitch
 }
 
 
@@ -210,9 +213,13 @@ void IMU_UpdateEuler(uint8_t* pData)
     euler[1]=pData[5]<<8|pData[4];
     euler[2]=pData[7]<<8|pData[6];
 
-    imu_object.pitch=uint_to_float(euler[0],PITCH_CAN_MIN,PITCH_CAN_MAX,16);
+    // imu_object.pitch=uint_to_float(euler[0],PITCH_CAN_MIN,PITCH_CAN_MAX,16);
+    // imu_object.yaw=uint_to_float(euler[1],YAW_CAN_MIN,YAW_CAN_MAX,16);
+    // imu_object.roll=uint_to_float(euler[2],ROLL_CAN_MIN,ROLL_CAN_MAX,16);
+    imu_object.roll=uint_to_float(euler[0],PITCH_CAN_MIN,PITCH_CAN_MAX,16);
     imu_object.yaw=uint_to_float(euler[1],YAW_CAN_MIN,YAW_CAN_MAX,16);
-    imu_object.roll=uint_to_float(euler[2],ROLL_CAN_MIN,ROLL_CAN_MAX,16);
+    imu_object.pitch=uint_to_float(euler[2],ROLL_CAN_MIN,ROLL_CAN_MAX,16);
+
     // get Yaw total, yaw数据可能会超过360,处理一下方便其他功能使用(如小陀螺)
     if (imu_object.yaw - imu_object.yaw_last > 180.0f)
     {
@@ -270,7 +277,7 @@ void IMU_UpdateData(uint8_t* pData)
  */
 int dm_imu_rx_callback(uint32_t id, uint8_t *data){
 
-        if (id == 0x11)
+        if (id == 0x09)
         {
             IMU_UpdateData(data);
             return 0;

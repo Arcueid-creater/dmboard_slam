@@ -13,6 +13,11 @@
 #define RF 1
 #define LB 2
 #define RB 3
+#define PITCH_OFFSET (-1.09982598)
+#define ROLL_OFFSET (-2.73424292)
+#define IMU_FILTER_ALPHA_PIT  0.20f
+#define IMU_FILTER_ALPHA_ROLL  0.1f
+#define IMU_FILTER_ALPHA_Z  0.4f
 /*
                   _ooOoo_
                  o8888888o
@@ -35,7 +40,7 @@
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
            佛祖保佑 永无BUG
 */
-
+//文总是全栈工程师
 // ========== 全局变量 ==========
 static LifterController_t g_lifter_ctrl;
 static struct ins_msg ins_data;
@@ -47,7 +52,9 @@ MCN_DECLARE(lifter_fdb_topic);
 MCN_DECLARE(ins_topic);
 static McnNode_t ins_topic_node;
 static McnNode_t lifter_cmd_node;
-
+static float imu_pitch_filt = 0.0f;
+static float imu_roll_filt = 0.0f;
+static float imu_z_filt  = 0.0f;
  unitree_motor_object_t *lifter_motor[4];  // 4个Unitree升降电机
 static struct lifter_controller_t
 {
@@ -72,7 +79,7 @@ pid_obj_t *z_accel_controller  ;
 #define LIFTER2_MAX_ANGLE 9.55365467f
 #define LIFTER3_MIN_ANGLE 2.20376015f
 #define LIFTER3_MAX_ANGLE (-3.0234834f)
-float MOTOR_POS_OFFSET[4] = {9.77320576f, -1.06094193f, -0.00222427733f, 7.101964000f}; // 电机位置零点偏移 (根据实际调试设置)
+float MOTOR_POS_OFFSET[4] = {12.1740828f, -3.12683535f, -5.81763554f, 14.8328609f}; // 电机位置零点偏移 (根据实际调试设置)
 
 // ========函数的声明========
 
@@ -81,18 +88,16 @@ static void LifterCtrl_StateHander();
 static void lifter_pub_push(void);
 static void lifter_sub_init(void);
 static void lifter_sub_pull(void);
-static void lifter_pub_init(void);
+
 void GetTargetHeight(LifterController_t *lifter,struct lifter_cmd_msg lifter_cmd_fuc );
 void LifterInit(void)
 {
-    lifter_pub_init();
+
     lifter_sub_init();
     lifter_motor_init();
     // 初始化升降控制器
-    Lifter_Init(&g_lifter_ctrl);
-
     // 初始化并注册电机
-
+    Lifter_Init(&g_lifter_ctrl);
 }
 
 int lifter_ = 0;
@@ -113,25 +118,9 @@ void lifter_control_task(void)
     // 5. 更新发布者数据
     lifter_pub_push();
 
-    // 控制周期 1ms (1kHz)
-    // vTaskDelayUntil(&motor_wake_time, 1);
+
 }
 
-// __attribute__((noreturn))void LifterTask_entry(void const * argument)
-// {
-//     // 初始化发布/订阅
-//     //
-//     // 等待其他模块初始化完成
-//     vTaskDelay(500);
-//     uint32_t motor_wake_time = osKernelSysTick();
-//     /* Infinite loop */
-//     for (;;)
-//     {
-//         // 1. 更新订阅者数据
-//
-//     }
-// }
-//====================状态机处理函数======================//
 /**
  * @brief 底盘状态机处理
  */
@@ -186,9 +175,34 @@ static void LifterCtrl_StateHander()
                 lifter_fdb.back_mode = LIFTER_BACK_STEP; //正在归中
             }
             break;
+
+        case LIFTER_CLIMB:
+            g_lifter_ctrl.leg.ref_joint_angle[0]=30.0F;
+            g_lifter_ctrl.leg.ref_joint_angle[1]=80.0f;
+            g_lifter_ctrl.leg.ref_joint_angle[2]=75.0f;
+            g_lifter_ctrl.leg.ref_joint_angle[3]=0.0f;
+            // g_lifter_ctrl.leg.ref_joint_angle[0]=80.0F;
+            // g_lifter_ctrl.leg.ref_joint_angle[1]=80.0f;
+            // g_lifter_ctrl.leg.ref_joint_angle[2]=0.0f;
+            // g_lifter_ctrl.leg.ref_joint_angle[3]=70.02f;
+            break;
+            case LIFTER_BACK_UP:
+            g_lifter_ctrl.leg.ref_joint_angle[3]=lifter_cmd.motor3angel;
+            break;
     }
 }
+// alpha 越小，滤波越平滑，但响应越慢
 
+
+
+
+void low_filter_angle(float imu_pitch_meas,float imu_roll_meas,float imu_z_meas)
+{
+    imu_pitch_filt = imu_pitch_filt +
+                     IMU_FILTER_ALPHA_PIT * (imu_pitch_meas - imu_pitch_filt);
+    imu_roll_filt = imu_roll_filt +IMU_FILTER_ALPHA_ROLL * (imu_roll_meas - imu_roll_filt);
+    imu_z_filt=imu_z_filt+IMU_FILTER_ALPHA_Z*(imu_z_meas-imu_z_filt);
+}
 // ========== 多项式求值函数 ==========
 /**
  * @brief 计算多项式的值
@@ -207,25 +221,6 @@ float Poly_Eval(const float *coeff, int order, float x)
         result = result * x + coeff[i];
     }
     return result;
-}
-
-
-/**
- * @brief 计算多项式导数的值（使用预计算的导数系数）
- * @param deriv_coeff 导数多项式系数（从MATLAB获得）
- * @param order 导数多项式阶数（原阶数-1）
- * @param x 自变量
- * @return 导数值 dp/dx
- */
-float Poly_Eval_Derivative(const float *deriv_coeff, int order, float x)
-{
-    // 直接使用预计算的导数系数
-    return Poly_Eval(deriv_coeff, order, x);
-}
-
-void forward_pid_init()
-{
-
 }
 
 // ========== 正运动学 ==========
@@ -258,8 +253,8 @@ void FK_FootPosition(const LegMechanism_t *mech, float theta_deg, float *x, floa
 void Jacobian_Compute(const LegMechanism_t *mech, float theta_deg, float *J11, float *J21)
 {
     // 使用预计算的导数系数（POLY_ORDER-1阶）
-    *J11 = Poly_Eval_Derivative(mech->poly.dpx, POLY_ORDER - 1, theta_deg);
-    *J21 = Poly_Eval_Derivative(mech->poly.dpy, POLY_ORDER - 1, theta_deg);
+    *J11 = Poly_Eval(mech->poly.dpx, POLY_ORDER - 1, theta_deg);
+    *J21 = Poly_Eval(mech->poly.dpy, POLY_ORDER - 1, theta_deg);
 }
 
 // ========== 力矩转换 ==========
@@ -289,43 +284,13 @@ void Force_To_Torque(const LegMechanism_t *mech, int leg_idx,
     float theta_deg = g_lifter_ctrl.leg.joint_angle[leg_idx];
     
     // 计算雅可比矩阵 (单位: mm/deg)
-    float J11, J21;
+   static float J11, J21;
     Jacobian_Compute(mech, theta_deg, &J11, &J21);
     
     // 力矩计算 (单位转换: mm->m, deg->rad)
     // 180/pi / 1000
     float torque_Nmm_per_deg = (J11*J11+J21*J21)/J21*Fy;  // N·mm/deg
     *torque = torque_Nmm_per_deg * 0.0572957795f;     // N·m
-}
-
-/**
- * @brief 关节力矩转换为足端力（逆运算，用于力反馈）
- * @param mech 机构参数
- * @param leg_idx 腿编号
- * @param torque 关节力矩 (N·m)
- * @param Fx 输出足端X方向力 (N)
- * @param Fy 输出足端Y方向力 (N)
- * 
- * 注意：此函数假设仅在Y方向施力（垂直方向）
- * 
- * 逆向公式: Fy = τ / (dy/dθ_rad)
- *          = τ / [(dy/dθ_deg) * (π/180) / 1000]
- *          = τ * 1000 * (180/π) / (dy/dθ_deg)
- */
-void Torque_To_Force(const LegMechanism_t *mech, int leg_idx,
-                     float torque, float *Fx, float *Fy)
-{
-    float theta_deg = g_lifter_ctrl.leg.joint_angle[leg_idx];
-    
-    float J11, J21;
-    Jacobian_Compute(mech, theta_deg, &J11, &J21);
-    
-    // 假设仅在Y方向施力，则 Fx = 0
-    *Fx = 0.0f;
-    
-    // 逆向转换 (单位: N·m -> N)
-    // 1000 * 180/π = 1000 / 0.017453293 = 57295.78
-    *Fy = torque * 57295.78f / J21;
 }
 
 // ========== 电机控制回调函数 ==========
@@ -348,7 +313,7 @@ static void motor_control_0(unitree_motor_object_t *motor)
     float pid_out=-pid_calculate(lifter_pid_controller[0].speed_pid,g_lifter_ctrl.leg.joint_angle[0],g_lifter_ctrl.leg.ref_joint_angle[0]);
     torque=torque+pid_out;
     torqueaa=torque;
-    VAL_LIMIT(torque,-1.0f,1.0f);
+    VAL_LIMIT(torque,-2.5f,2.5f);
     // 设置电机控制参数（纯力矩控制模式：kp=0, kd=0）
     // pos=0, vel=0, tor=目标力矩, kp=0, kd=0
     unitree_motor_set_control(motor, 0.0f, 0.0f, torque, 0.0f, lifter_cmd.Kd);
@@ -368,7 +333,7 @@ static void motor_control_1(unitree_motor_object_t *motor)
     float torque = -g_lifter_ctrl.leg.joint_torque[1]/6.33000f;
     float pid_out=pid_calculate(lifter_pid_controller[1].speed_pid,g_lifter_ctrl.leg.joint_angle[1],g_lifter_ctrl.leg.ref_joint_angle[1]);
     torque=torque+pid_out;
-    VAL_LIMIT(torque,-1.0f,1.0f);
+    VAL_LIMIT(torque,-2.5f,2.5f);
     // 设置电机控制参数（纯力矩控制模式：kp=0, kd=0）
     // pos=0, vel=0, tor=目标力矩, kp=0, kd=0
     unitree_motor_set_control(motor, 0.0f, 0.0f, torque, 0.0f, lifter_cmd.Kd);
@@ -388,7 +353,7 @@ static void motor_control_2(unitree_motor_object_t *motor)
     float torque = -g_lifter_ctrl.leg.joint_torque[2]/6.33000f;
     float pid_out=pid_calculate(lifter_pid_controller[2].speed_pid,g_lifter_ctrl.leg.joint_angle[2],g_lifter_ctrl.leg.ref_joint_angle[2]);
     torque=torque+pid_out;
-    VAL_LIMIT(torque,-1.0f,1.0f);
+    VAL_LIMIT(torque,-2.5f,2.5f);
     // 设置电机控制参数（纯力矩控制模式：kp=0, kd=0）
     // pos=0, vel=0, tor=目标力矩, kp=0, kd=0
     unitree_motor_set_control(motor, 0.0f, 0.0f, torque, 0.0f, lifter_cmd.Kd);
@@ -408,7 +373,7 @@ static void motor_control_3(unitree_motor_object_t *motor)
     float torque = g_lifter_ctrl.leg.joint_torque[3]/6.33000f;
     float pid_out=-pid_calculate(lifter_pid_controller[3].speed_pid,g_lifter_ctrl.leg.joint_angle[3],g_lifter_ctrl.leg.ref_joint_angle[3]);
     torque=torque+pid_out;
-    VAL_LIMIT(torque,-1.0f,1.0f);
+    VAL_LIMIT(torque,-2.5f,2.5f);
     // 设置电机控制参数（纯力矩控制模式：kp=0, kd=0）
     // pos=0, vel=0, tor=目标力矩, kp=0, kd=0
     unitree_motor_set_control(motor, 0.0f, 0.0f, torque, 0.0f, lifter_cmd.Kd);
@@ -513,7 +478,8 @@ static void (*motor_control[4])(unitree_motor_object_t *) = {
 ////TODO 为后续添加控制底盘倾角的功能 ，目前只能改变底盘高度和速度
 /**/
 
-int shuipin=1;
+
+int shuipin=0;
 void SetRefState(LifterController_t *lifter,struct lifter_cmd_msg cmd)
 {
      FK_FootPosition(&lifter->mechanism,
@@ -532,23 +498,27 @@ void SetRefState(LifterController_t *lifter,struct lifter_cmd_msg cmd)
      }
     if (shuipin == 1)
     {
-        lifter->leg.ref_joint_angle[0]+=pid_calculate(lifter_angle_controller[0].pitch_pid,ins_data.pitch,0)
-                                    -pid_calculate(lifter_angle_controller[0].roll_pid,ins_data.roll,0);
+        low_filter_angle(ins_data.pitch,ins_data.roll,ins_data.motion_accel_n[2]);
+        lifter->leg.ref_joint_angle[0]+=pid_calculate(lifter_angle_controller[0].pitch_pid,imu_pitch_filt,PITCH_OFFSET)
+                                    -pid_calculate(lifter_angle_controller[0].roll_pid,imu_roll_filt,ROLL_OFFSET);
 
-        lifter->leg.ref_joint_angle[1]+=pid_calculate(lifter_angle_controller[1].pitch_pid,ins_data.pitch,0)
-                                       +pid_calculate(lifter_angle_controller[1].roll_pid,ins_data.roll,0);
+        lifter->leg.ref_joint_angle[1]+=pid_calculate(lifter_angle_controller[1].pitch_pid,imu_pitch_filt,PITCH_OFFSET)
+                                       +pid_calculate(lifter_angle_controller[1].roll_pid,imu_roll_filt,ROLL_OFFSET);
 
-        lifter->leg.ref_joint_angle[2]+=-pid_calculate(lifter_angle_controller[2].pitch_pid,ins_data.pitch,0)
-                                       -pid_calculate(lifter_angle_controller[2].roll_pid,ins_data.roll,0);
+        lifter->leg.ref_joint_angle[2]+=-pid_calculate(lifter_angle_controller[2].pitch_pid,imu_pitch_filt,PITCH_OFFSET)
+                                       -pid_calculate(lifter_angle_controller[2].roll_pid,imu_roll_filt,ROLL_OFFSET);
 
-        lifter->leg.ref_joint_angle[3]+=-pid_calculate(lifter_angle_controller[3].pitch_pid,ins_data.pitch,0)
-                                       +pid_calculate(lifter_angle_controller[3].roll_pid,ins_data.roll,0);
+        lifter->leg.ref_joint_angle[3]+=-pid_calculate(lifter_angle_controller[3].pitch_pid,imu_pitch_filt,PITCH_OFFSET)
+                                       +pid_calculate(lifter_angle_controller[3].roll_pid,imu_roll_filt,ROLL_OFFSET);
 
     }
-
+    for (int i = 0; i < 4; i++)
+    {
+        // lifter->leg.ref_joint_angle[i]-=pid_calculate(z_accel_controller,imu_z_filt,0);
+    }
      for (int i = 0; i < 4; i++)
      {
-         VAL_LIMIT(lifter->leg.ref_joint_angle[i],-20.0f,35.0f);
+         VAL_LIMIT(lifter->leg.ref_joint_angle[i],0.0f,80.0f);
      }
      lifter->enable=cmd.enable;
     // lifter->state.h_ref=cmd.height;
@@ -655,20 +625,7 @@ void Lifter_UpdateState(LifterController_t *lifter)
     lifter->state.droll = ins_data.roll_gyro;                 // rad/s (无需转换)
     lifter->state.dpitch = -ins_data.pitch_gyro;                // rad/s (无需转换)
 
-    // TODO: BMI088修复后恢复以下代码：
-    // lifter->state.phi = imu_data.roll;        // Roll角 (rad)
-    // lifter->state.theta = imu_data.pitch;     // Pitch角 (rad)
-    // lifter->state.dphi = imu_data.gyro_x;     // Roll角速度 (rad/s)
-    // lifter->state.dtheta = imu_data.gyro_y;   // Pitch角速度 (rad/s)
-    
-    // ===== 从关节电机读取角度 =====
 
-        // Unitree电机反馈的位置单位是rad，需要转换为度
-        //因为跑仿真时
-        //电机逆时针旋转为正方向，和机械结构定义相反，所以这里取负号
-        // lifter->leg.joint_angle[i] = (lifter_motor[i]->measure.position-MOTOR_POS_OFFSET[i]) * 57.2957795f/6.33f;  // rad -> deg
-
-    ////  TODO：验证方向是否正确
     lifter->leg.joint_angle[LF]= -(lifter_motor[LF]->measure.position - MOTOR_POS_OFFSET[LF]) * 57.2957795f/6.33f;
     lifter->leg.joint_angle[RF]= (lifter_motor[RF]->measure.position - MOTOR_POS_OFFSET[RF]) * 57.2957795f/6.33f;
     lifter->leg.joint_angle[LB]= (lifter_motor[LB]->measure.position - MOTOR_POS_OFFSET[LB]) * 57.2957795f/6.33f;
@@ -692,11 +649,7 @@ void Lifter_UpdateState(LifterController_t *lifter)
 
     lifter_fdb.real_height = lifter->state.h;
     lifter_fdb.real_dheight= lifter->state.dh;
-    // lifter_fdb.real_angle=lifter->leg.ref_joint_angle[0];
-    // lifter_fdb.real_dheight = h_measured;
-    // 现在 lifter->state.h 和 lifter->state.dh 已经被卡尔曼滤波器更新
-    // lifter->state.h  - 滤波后的高度 (m)，噪声已被抑制
-    // lifter->state.dh - 估计的速度 (m/s)，通过高度微分得到，已平滑处理
+
 }
 
 // ========== 初始化函数 ==========
@@ -716,51 +669,85 @@ static void Lifter_Init(LifterController_t *lifter)
     lifter->mechanism.L_small = 50.0f;
     lifter->mechanism.L3_offset = 65.0f;
     
+    // // px[0] + px[1]*θ + px[2]*θ² + px[3]*θ³ + px[4]*θ⁴
+    // float px_temp[POLY_ORDER + 1] = {
+    //     1.0606676908e+02f,
+    //     3.8015609946e+00f,
+    //     -5.8677986815e-02f,
+    //     4.3021717530e-04f,
+    //     -1.6492643775e-06f
+    // };
+    //
+    // // py[0] + py[1]*θ + py[2]*θ² + py[3]*θ³ + py[4]*θ⁴
+    // float py_temp[POLY_ORDER + 1] = {
+    //     -1.6411796029e+02f,
+    //     1.6630830586e+00f,
+    //     1.8173751654e-02f,
+    //     -1.9681505558e-04f,
+    //     5.4781180031e-07f
+    // };
+    //
+    // // 导数多项式系数（3阶，雅可比矩阵，常数项在前）
+    // // dpx[0] + dpx[1]*θ + dpx[2]*θ² + dpx[3]*θ³
+    // float dpx_temp[POLY_ORDER] = {
+    //     3.8015609946e+00f,
+    //     -1.1735597363e-01f,
+    //     1.2906515259e-03f,
+    //     -6.5970575100e-06f
+    // };
+    //
+    // // dpy[0] + dpy[1]*θ + dpy[2]*θ² + dpy[3]*θ³
+    // float dpy_temp[POLY_ORDER] = {
+    //     1.6630830586e+00f,
+    //     3.6347503308e-02f,
+    //     -5.9044516675e-04f,
+    //     2.1912472012e-06f
+    // };
+    // 位置多项式系数（4阶，常数项在前）
+    // px[0] + px[1]*θ + px[2]*θ² + px[3]*θ³ + px[4]*θ⁴
     float px_temp[POLY_ORDER + 1] = {
-        2.2876403757e+02f,
-        -3.8847651004e-02f,
-        -2.8184279695e-03f,
-        -9.2245455759e-05f,
-        4.6865022752e-07f
+        1.0595894884e+02f,
+        3.8348864509e+00f,
+        -6.0839910899e-02f,
+        4.7725296443e-04f,
+        -1.9718857338e-06f
     };
 
     // py[0] + py[1]*θ + py[2]*θ² + py[3]*θ³ + py[4]*θ⁴
     float py_temp[POLY_ORDER + 1] = {
-        -7.4666263366e+01f,
-        6.1082181072e-01f,
-        2.2081361353e-02f,
-        -2.4305388275e-04f,
-        8.9550747430e-07f
+        -1.6409350461e+02f,
+        1.6552915183e+00f,
+        1.8684052126e-02f,
+        -2.0797163114e-04f,
+        6.2457216113e-07f
     };
 
     // 导数多项式系数（3阶，雅可比矩阵，常数项在前）
     // dpx[0] + dpx[1]*θ + dpx[2]*θ² + dpx[3]*θ³
     float dpx_temp[POLY_ORDER] = {
-        -3.8847651004e-02f,
-        -5.6368559391e-03f,
-        -2.7673636728e-04f,
-        1.8746009101e-06f
+        3.8348864509e+00f,
+        -1.2167982180e-01f,
+        1.4317588933e-03f,
+        -7.8875429353e-06f
     };
 
     // dpy[0] + dpy[1]*θ + dpy[2]*θ² + dpy[3]*θ³
     float dpy_temp[POLY_ORDER] = {
-        6.1082181072e-01f,
-        4.4162722707e-02f,
-        -7.2916164826e-04f,
-        3.5820298972e-06f
+        1.6552915183e+00f,
+        3.7368104253e-02f,
+        -6.2391489343e-04f,
+        2.4982886445e-06f
     };
 
     memcpy(lifter->mechanism.poly.px, px_temp, sizeof(px_temp));
     memcpy(lifter->mechanism.poly.py, py_temp, sizeof(py_temp));
     
-    // 导数多项式系数（3阶，从MATLAB polyder获得）
-    // float dpx_temp[POLY_ORDER] = {0.0f, 0.0f, 0.0f, 0.0f};
-    // float dpy_temp[POLY_ORDER] = {0.0f, 0.0f, 0.0f, 0.0f};
+
     memcpy(lifter->mechanism.poly.dpx, dpx_temp, sizeof(dpx_temp));
     memcpy(lifter->mechanism.poly.dpy, dpy_temp, sizeof(dpy_temp));
     
     // ===== 系统参数 (从LQR.m获得) =====
-    lifter->mass = 4.5f;       // kg
+    lifter->mass = 4.50f;       // kg
     lifter->I_xx = 0.5f;        // kg·m²
     lifter->I_yy = 0.6f;        // kg·m²
     lifter->gravity = 9.786f;   // m/s²
@@ -834,15 +821,6 @@ static void Lifter_Init(LifterController_t *lifter)
     lifter->enable = 0;  // 默认不使能
 }
 
-
-
-// ========== 任务主循环 ==========
-/**
- * @brief 升降底盘任务入口
- * @param argument 任务参数
- */
-
-
 // ========== 辅助函数：使能/失能控制 ==========
 void Lifter_Enable(void)
 {
@@ -870,39 +848,7 @@ void Lifter_Disable(void)
     }
 }
 
-void Lifter_SetHeight(float height_m)
-{
-    g_lifter_ctrl.state.h_ref = height_m;
-}
 
-void Lifter_SetVelocity(float velocity_m_s)
-{
-    g_lifter_ctrl.state.dh_ref = velocity_m_s;
-}
-
-// ========== IMU重力补偿辅助函数 ==========
-/**
- * @brief 从IMU加速度去除重力分量（示例）
- * @param accel_imu IMU测量的加速度 (m/s²)
- * @param roll Roll角 (rad)
- * @param pitch Pitch角 (rad)
- * @param gravity 重力加速度 (m/s²)
- * @return 去除重力后的真实竖直加速度
- * 
- * 说明：
- *   IMU测量的是 "比力"（specific force），包含重力分量
- *   真实加速度 = IMU测量 - 重力在该轴的投影
- */
-float IMU_RemoveGravity_Z(float accel_imu, float roll, float pitch, float gravity)
-{
-    // 小角度近似：gravity_z ≈ g
-    // 精确计算：gravity_z = g * cos(roll) * cos(pitch)
-    
-    float gravity_z = gravity * cosf(roll) * cosf(pitch);
-    float accel_true = accel_imu - gravity_z;
-    
-    return accel_true;
-}
 
 /**
  * @brief 高度估计（从四条腿足端位置）
@@ -1095,8 +1041,4 @@ static void lifter_sub_pull(void)
         mcn_copy(MCN_HUB(lifter_cmd_topic), lifter_cmd_node, &lifter_cmd);
     }
 }
-void lifter_pub_init(void)
-{
-    // pub_lifter=pub_register("lifter_fdb", sizeof(struct  lifter_fdb_msg));
-    // mcn_publish(MCN_HUB(lifter_fdb_topic),&lifter_fdb);
-}
+// 每个周期调用的滤波

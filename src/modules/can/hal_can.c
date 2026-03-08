@@ -36,6 +36,7 @@ void CAN_send(FDCAN_HandleTypeDef *hfdcan, uint32_t send_id, uint8_t data[])
     tx_message.MessageMarker = 0;//消息标记0
     while (HAL_FDCAN_GetTxFifoFreeLevel(hfdcan) == 0) // 等待邮箱空闲
     {
+
     }
     HAL_FDCAN_AddMessageToTxFifoQ(hfdcan, &tx_message, data);
 }
@@ -106,20 +107,35 @@ void CAN_service_init(void)
             dji_motot_rx_callback(rx_header.Identifier, rx_data);
             // dm_motor_rx_callback(rx_header.Identifier, rx_data);
             // if(dm_motor_rx_callback(rx_header.Identifier, rx_data) == 0)
-            //     return;
+            // return;
 #endif
         }
-        if (hfdcan == &hfdcan2)
-        {
-            // dji_motot_rx_callback(rx_header.Identifier, rx_data);
-            // revaaa++;
-            dm_motor_rx_callback(rx_header.Identifier, rx_data);
-        }
+        // if (hfdcan == &hfdcan2)
+        // {
+        //     // dji_motot_rx_callback(rx_header.Identifier, rx_data);
+        //     // revaaa++;
+        //     dm_motor_rx_callback(rx_header.Identifier, rx_data);
+        //     // return;
+        //
+        // }
         if (hfdcan == &hfdcan3)
         {
 #ifdef BSP_USING_DM_IMU
-            if(dm_imu_rx_callback(rx_header.Identifier, rx_data) == 0)
-                return;
+            // if(dm_imu_rx_callback(rx_header.Identifier, rx_data) == 0)
+            //     dm_motor_rx_callback(rx_header.Identifier, rx_data);
+            if (rx_header.Identifier==0x09)
+            {
+                dm_imu_rx_callback(rx_header.Identifier, rx_data);
+                // return;
+            }
+            else
+            {
+                dm_motor_rx_callback(rx_header.Identifier, rx_data);
+            }
+
+
+
+            // return;
 #endif
 
         }
@@ -141,13 +157,44 @@ void CAN_service_init(void)
              dji_motot_rx_callback(rx_header.Identifier, rx_data);
              // if(dji_motot_rx_callback(rx_header.Identifier, rx_data) == 0)
              // dm_motor_rx_callback(rx_header.Identifier, rx_data);
-             //     return;
+             // return;
          }
+//          if (hfdcan == &hfdcan3)
+//          {
+// #ifdef BSP_USING_DM_IMU
+//              // if(dm_imu_rx_callback(rx_header.Identifier, rx_data) == 0)
+//              //     dm_motor_rx_callback(rx_header.Identifier, rx_data);
+//              if (rx_header.Identifier==0x09)
+//              {
+//                  dm_imu_rx_callback(rx_header.Identifier, rx_data);
+//                  // return;
+//              }
+//              else
+//              {
+//                  dm_motor_rx_callback(rx_header.Identifier, rx_data);
+//                  // return;
+//              }
+//
+//
+//
+//                  return;
+// #endif
+
+         // }
          if (hfdcan == &hfdcan2)
          {
 #ifdef BSP_USING_DJI_MOTOR
              // dji_motot_rx_callback(rx_header.Identifier, rx_data);
-             dm_motor_rx_callback(rx_header.Identifier, rx_data);
+             // if (rx_header.Identifier==0x09)
+             // {
+             //     dm_imu_rx_callback(rx_header.Identifier, rx_data);
+             //     // return;
+             // }
+             // else
+             // {
+                 dm_motor_rx_callback(rx_header.Identifier, rx_data);
+             // }
+             // return;
 #endif
 #ifdef BSP_USING_LK_MOTOR
              if(lk_motot_rx_callback(rx_header.StdId, rx_data) == 0)
@@ -157,7 +204,27 @@ void CAN_service_init(void)
              if(ht_motor_rx_callback(rx_header.StdId, rx_data) == 0)
                 return;
 #endif
+             if (hfdcan == &hfdcan3)
+             {
+#ifdef BSP_USING_DM_IMU
+                 // if(dm_imu_rx_callback(rx_header.Identifier, rx_data) == 0)
+                 //     dm_motor_rx_callback(rx_header.Identifier, rx_data);
+                 if (rx_header.Identifier==0x09)
+                 {
+                     dm_imu_rx_callback(rx_header.Identifier, rx_data);
+                     // return;
+                 }
+                 else
+                 {
+                     dm_motor_rx_callback(rx_header.Identifier, rx_data);
+                 }
 
+
+
+                 // return;
+#endif
+
+             }
          }
      }
  }

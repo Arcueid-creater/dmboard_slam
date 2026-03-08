@@ -3,6 +3,7 @@
 //
 
 #include <stdlib.h>
+#include <math.h>
 #include "gimbal_task.h"
 #include "rm_config.h"
 #include "rm_module.h"
@@ -10,9 +11,24 @@
 #define GIM_PITCH_MOTOR_NUM 1
 #define GIM_YAW_MOTOR_NUM 3
 #define GIM_MOTOR_NUM 3
-/* ----------------------------------------------- Ïß³Ì¼äÍ¨Ñ¶»°ÌâÏà¹Ø ---------------------------------------------------- */
+#define UP_PITCH_REDUCTION 0.6f
+#define yaw_motor 0
+#define dowm_pitch_motor 1
+#define up_pitch_motor 2
+// #define CLOSE_DM_MOTOR
+static float control_dt[4];
+static float control_start[4];
+static GimbalController_t g_gimbal_ctrl;
 
-// ¶©ÔÄ
+float last_pitch=0.0f;
+float lastoutput=2.0f;
+static float pitch_filtered = 0;
+float dm_obs[4];
+#define DM_RATIO 1.0f
+#define DM_OUTPUT_LIMIT 7.0f
+/* ----------------------------------------------- çº¿ç¨‹é—´é€šè®¯è¯é¢˜ç›¸å…³ ---------------------------------------------------- */
+
+// è®¢é˜…
 MCN_DECLARE(ins_topic);
 static McnNode_t ins_topic_node;
 static struct ins_msg ins;
@@ -26,22 +42,24 @@ MCN_DECLARE(gimbal_ins_topic);
 static McnNode_t gimbal_ins_node;
 static struct dm_imu_t gim_ins;
 
-// ·¢²¼
+// å‘å¸ƒ
 MCN_DECLARE(gimbal_fdb);
 struct gimbal_fdb_msg gimbal_fdb_data;
 
 static void gimbal_pub_push(void);
 static void gimbal_sub_init(void);
 static void gimbal_sub_pull(void);
-
-
-/* ------------------------------------------------- µç»ú¿ØÖÆÏà¹Ø ------------------------------------------------------ */
+float angle_normalize(float angle_deg);
+float pitch_calc_motor_angle(float ref_angle);
+float get_pitch_form_motor();
+static void gimbal_pid_init();
+//äº‹å…ˆéœ€è¦åœ¨æ­£æ–¹å‘çŸ«æ­£0åº¦
 
 static struct gimbal_controller_t{
-    /* »ùÓÚimuÊı¾İ±Õ»·£¬Ö÷ÒªÓÃÓÚÊÖ¶¯Ä£Ê½ */
+    /* åŸºäºimuæ•°æ®é—­ç¯ï¼Œä¸»è¦ç”¨äºæ‰‹åŠ¨æ¨¡å¼ */
     pid_obj_t *pid_speed_imu;
     pid_obj_t *pid_angle_imu;
-    /* »ùÓÚimuÊı¾İ±Õ»·£¬Ö÷ÒªÓÃÓÚ×Ô¶¯Ä£Ê½ */
+    /* åŸºäºimuæ•°æ®é—­ç¯ï¼Œä¸»è¦ç”¨äºè‡ªåŠ¨æ¨¡å¼ */
     pid_obj_t *pid_speed_auto;
     pid_obj_t *pid_angle_auto;
 }gim_controller[GIM_MOTOR_NUM];
@@ -49,16 +67,16 @@ static struct gimbal_controller_t{
 motor_config_t gimbal_motor_config[GIM_MOTOR_NUM] = {
         {
                 .motor_type = DM4310,
-                .can_id = CAN_ID_GIMBAL_MOTOR,
+                .can_id = 2,
                 .rx_id = 0x10,
-                .tx_id = 0x01,
-                // .controller = &gim_controller[YAW],
+                .tx_id = 0x03,
+                .ctrl_mode = MIT_CFG
         },
         {
-                .motor_type = DM4310,   //Ó¢ĞÛpitchÖá¸ÄÓÃË¿¸Ë½á¹¹£¬»»ÓÃ3508µç»ú
+                .motor_type = DM4310,   //è‹±é›„pitchè½´æ”¹ç”¨ä¸æ†ç»“æ„ï¼Œæ¢ç”¨3508ç”µæœº
                 .can_id = CAN_ID_GIMBAL_MOTOR,
-                .rx_id = 0x10,   //µç»úID´ı¶¨
-                // .controller = &gim_controller[PITCH],
+                .rx_id = 0x10,   //ç”µæœºIDå¾…å®š
+                .ctrl_mode = MIT_CFG,
                 .tx_id = 0x02,
 
         },
@@ -66,509 +84,475 @@ motor_config_t gimbal_motor_config[GIM_MOTOR_NUM] = {
             .motor_type = DM4310,
             .can_id = CAN_ID_GIMBAL_MOTOR,
             .rx_id = 0x10,
-            .tx_id = 0x03,
-            // .controller = &gim_controller[YAW],
+            .tx_id = 0x01,
+            .ctrl_mode = MIT_CFG
         }
 };
 
-
-/* ------------------------------------------------ ÔÆÌ¨¿ØÖÆÏà¹Ø ----------------------------------------------------- */
-/* gyroÈıÖá£º[0]ÎªX£¬[1]ÎªY£¬[2]ÎªZ */
+/* ------------------------------------------------ äº‘å°æ§åˆ¶ç›¸å…³ ----------------------------------------------------- */
+/* gyroä¸‰è½´ï¼š[0]ä¸ºXï¼Œ[1]ä¸ºYï¼Œ[2]ä¸ºZ */
 #define X 0
 #define Y 1
 #define Z 2
-static int16_t yaw_motor_relive, pitch_motor_relive;  // µç»úÏà¶ÔÓÚ¹éÖĞÖµµÄ½Ç¶È
+static int16_t yaw_motor_relive, pitch_motor_relive;  // ç”µæœºç›¸å¯¹äºå½’ä¸­å€¼çš„è§’åº¦
 
-static ramp_obj_t *yaw_ramp;//yaw ÖáÔÆÌ¨¿ØÖÆĞ±ÆÂ
-static ramp_obj_t *pit_ramp;//pitch ÖáÔÆÌ¨¿ØÖÆĞ±ÆÂ
-
-static dji_motor_object_t *gim_motor_pitch[GIM_PITCH_MOTOR_NUM];  // µ×ÅÌµç»úÊµÀı
-static dm_motor_object_t *gim_motor_yaw[GIM_YAW_MOTOR_NUM];  // µ×ÅÌµç»úÊµÀı
-static float gim_motor_ref[GIM_MOTOR_NUM]; // µç»ú¿ØÖÆÆÚÍûÖµ
+static dm_motor_object_t *gim_motor[GIM_MOTOR_NUM];  // åº•ç›˜ç”µæœºå®ä¾‹
+static float gim_motor_ref[GIM_MOTOR_NUM]; // ç”µæœºæ§åˆ¶æœŸæœ›å€¼
 
 static void gimbal_motor_init();
-static int16_t motor_control_yaw(dji_motor_measure_t measure);
-static int16_t motor_control_pitch(dji_motor_measure_t measure);
-static int16_t get_relative_pos(int16_t raw_ecd, int16_t center_offset);
-static int auto_staus=1;
-/*×ÔÃéÏà¶Ô½Ç´«²Î·´À¡*/
+
+/*è‡ªç„ç›¸å¯¹è§’ä¼ å‚åé¦ˆ*/
 auto_relative_angle_status_e auto_relative_angle_status=RELATIVE_ANGLE_TRANS;
 
-/* ------------------------------------------------ ÔÆÌ¨Ïß³ÌÈë¿Ú ----------------------------------------------------- */
-static float gim_dt;
+/* ------------------------------------------------ äº‘å°çº¿ç¨‹å…¥å£ ----------------------------------------------------- */
+
 
 void gimbal_task_init(void){
     gimbal_sub_init();
     gimbal_motor_init();
-    // yaw_ramp = ramp_register(0, BACK_CENTER_TIME/GIMBAL_PERIOD);
-    // pit_ramp = ramp_register(0, BACK_CENTER_TIME/GIMBAL_PERIOD);
+    gimbal_pid_init();
+    // dm_motor_enable_all();
+}
 
+uint8_t data[8];
+
+/* -------------------------------------------- äº‘å°å§¿æ€ä¸æ ¡å‡†ç›¸å…³ -------------------------------------------- */
+
+/* äº‘å°çŠ¶æ€æœºï¼šä¸Šç”µå…ˆæ ¡å‡†ï¼Œç„¶åæ­£å¸¸è¿è¡Œ */
+typedef enum
+{
+    GIMBAL_STATE_INIT = 0,      // ç­‰å¾…IMUä¸ç”µæœºä¸Šç”µç¨³å®š
+    GIMBAL_STATE_CALIB_UP_PITCH,// ä¸Špitch åˆ©ç”¨IMUæ‰¾æ°´å¹³å¹¶é›¶ç‚¹å…³èŠ‚ç¼–ç å™¨
+    GIMBAL_STATE_CALIB_YAW,     // yaw å½’ä¸­
+    GIMBAL_STATE_SET_IMU_YAW0,  // è®°å½•å½“å‰ä½ç½®ä¸ºIMU yaw = 0
+    GIMBAL_STATE_RUN            // æ­£å¸¸è¿è¡Œï¼Œäº’è¡¥æ»¤æ³¢
+} gimbal_run_state_e;
+
+static gimbal_run_state_e gimbal_state = GIMBAL_STATE_INIT;
+
+/* ç®€å•å»¶æ—¶è®¡æ•°ï¼Œç”¨äº INIT -> CALIB çŠ¶æ€åˆ‡æ¢ï¼ˆå•ä½ï¼šæ§åˆ¶å‘¨æœŸæ¬¡æ•°ï¼‰ */
+static uint32_t gimbal_init_cnt = 0;
+
+/* ä¸Špitch ç¼–ç å™¨é›¶ç‚¹è®¾ç½®æ ‡å¿—ï¼Œé˜²æ­¢é‡å¤å‘é€æ¸…é›¶å‘½ä»¤ */
+static uint8_t up_pitch_zero_done = 0;
+
+/* ä» dm_motor å¯¹è±¡è¯»å–å½“å‰å…³èŠ‚è§’åº¦ï¼ˆå¼§åº¦ï¼Œå¤šåœˆ total_angle å·²æ˜¯radï¼‰ */
+static float get_yaw_motor_angle(void)
+{
+    if (gim_motor[yaw_motor] == NULL)
+    {
+        return 0.0f;
+    }
+    return angle_normalize(gim_motor[yaw_motor]->measure.total_angle);
+}
+
+static float get_down_pitch_motor_angle(void)
+{
+    if (gim_motor[dowm_pitch_motor] == NULL)
+    {
+        return 0.0f;
+    }
+    return angle_normalize(gim_motor[dowm_pitch_motor]->measure.total_angle);
+}
+static float get_up_pitch_motor_angle(void)
+{
+    if (gim_motor[up_pitch_motor] == NULL)
+    {
+        return 0.0f;
+    }
+    return angle_normalize(gim_motor[up_pitch_motor]->measure.total_angle*UP_PITCH_REDUCTION);
 }
 
 
-static float gim_start;
-static uint32_t init_start_time; // ÔÆÌ¨³õÊ¼»¯¹éÖĞ¿ªÊ¼Ê±¼ä£¬±ÜÃâ³¤Ê±¼äÒòÎª¾²Ì¬Îó²î£¬¿¨ÔÚ¹éÖĞÄ£Ê½
-static uint32_t init_dt; // ÔÆÌ¨³õÊ¼»¯¹éÖĞ½øĞĞÊ±³¤
-/* USER CODE END Header_ChassisTask_Entry */
-void gimbal_control()
+static void GimbalCtrl_StateHandler(void)
 {
-
-    gim_start = dwt_get_time_ms();
-    // ÔÆÌ¨±¾ÉíÏà¶ÔÓÚ¹éÖĞÖµµÄ½Ç¶È£¬È¡¸º
-    yaw_motor_relive = -(int16_t)get_relative_pos(gim_motor_yaw[0]->measure.total_angle, CENTER_ECD_YAW) / 22.75f;
-//     pitch_motor_relive = -(int16_t )get_relative_pos(gim_motor_pitch->measure.total_angle, CENTER_ECD_PITCH) / 22.75f;
-    pitch_motor_relive = gim_ins.pitch;   //pitchÖá¸ÄÓÃË¿¸Ë½á¹¹£¬Ö±½ÓÊ¹ÓÃins_data.pitch×÷ÎªÏà¶Ô½Ç¶ÈÖµ
-
-//        if((gim_cmd.ctrl_mode==GIMBAL_GYRO||GIMBAL_AUTO)&&gimbal_fdb_data.back_mode==BACK_IS_OK)
-//        {
-//        yaw_motor_relive = (rt_int16_t)(gim_cmd.yaw+gim_ins.yaw_total_angle);
-//        }
-
-    for (uint8_t i = 0; i < GIM_PITCH_MOTOR_NUM; i++)
-    {
-        dji_motor_enable(gim_motor_pitch[i]);
-    }
-    for (uint8_t i = 0; i < GIM_YAW_MOTOR_NUM; i++)
-    {
-        dm_motor_enable(gim_motor_yaw[i]);
-    }
-
     switch (gim_cmd.ctrl_mode)
     {
+
         case GIMBAL_RELAX:
-            for (uint8_t i = 0; i < GIM_PITCH_MOTOR_NUM; i++)
-            {
-                dji_motor_relax(gim_motor_pitch[i]);
-            }
-            for (uint8_t i = 0; i < GIM_YAW_MOTOR_NUM; i++)
-            {
-                dm_motor_relax(gim_motor_yaw[i]);
-            }
+            dm_motor_disable_all();
             gimbal_fdb_data.back_mode = BACK_STEP;
-            yaw_ramp->reset(yaw_ramp, 0, BACK_CENTER_TIME/GIMBAL_PERIOD);
-            pit_ramp->reset(pit_ramp, 0, BACK_CENTER_TIME/GIMBAL_PERIOD);
-
             break;
+
         case GIMBAL_INIT:
-            // TODO£º¼ÓÈëĞ±ÆÂËã·¨£¬¿ÉÒÔ¿ØÖÆ¹éÖĞÊ±¼ä
-            // TODO: ½«±àÂëÆ÷Öµ×ª»¯Îª½Ç¶ÈÖµ
-            // TODO: ÓÅ»¯¹éÖĞÂß¼­£¬yawÖáÑ¡È¡×î½üµÄ·½Ïò
-            if(gim_cmd.last_mode != GIMBAL_INIT)
-                init_start_time = dwt_get_time_ms();
-            else
-                init_dt = dwt_get_time_ms() - init_start_time;
-
-            gim_motor_ref[YAW] = yaw_motor_relive * ( 1 - yaw_ramp->calc(yaw_ramp));
-            gim_motor_ref[PITCH] = pitch_motor_relive* ( 1 - pit_ramp->calc(pit_ramp));
-
-            //pitchÖá¸ÄÓÃË¿¸Ë½á¹¹£¬Ö»ÄÜ¸ù¾İimuÊı¾İ¿ØÖÆ¹éÖĞ
-            if(abs(gim_ins.pitch) <= (20 / 22.75f)
-               && (abs(gim_motor_yaw[0]->measure.total_angle - CENTER_ECD_YAW) <= 20)
-               // Èô³¤Ê±¼äÏİÓÚ¹éÖĞÄ£Ê½£¬¿ÉÒÔÊÊµ±·Å¿í¹éÖĞÌõ¼ş
-               || ((abs(gim_ins.pitch) <= (200 / 22.75f))
-                   && (abs(gim_motor_yaw[0]->measure.total_angle - CENTER_ECD_YAW) <= 200)
-                   && (init_dt > INIT_TIMEOUT)))
+        {
+            /* äº‘å°åˆå§‹åŒ– / å½’ä¸­è¿‡ç¨‹ï¼šå…è®¸ç”µæœºè¾“å‡ºï¼Œä½¿èƒ½ DMï¼Œè°ƒç”¨å†…éƒ¨çŠ¶æ€æœº */
+            dm_motor_enable_all();
+            gim_motor_ref[dowm_pitch_motor]=PI/2.0f;//ä¸‹pitchæŠ¬èµ·ä¸€åŠï¼Œä¸è¦å…¨éƒ¨æ”¶èµ·
+            gim_motor_ref[dowm_pitch_motor]=1.2f;
+            gim_motor_ref[up_pitch_motor]=pitch_calc_motor_angle(0);
+            if (fabsf(gim_motor[dowm_pitch_motor]->measure.total_angle-1.2f)<0.02f)
             {
-                gimbal_fdb_data.back_mode = BACK_IS_OK;
-                gimbal_fdb_data.yaw_offset_angle_total = gim_ins.yaw_total_angle;/*ÔÆÌ¨³é·çµÄÔ­Òò£¬ÆÚÍûÓ¦¸ÃÎª×Ü½Ç¶È¡£³é·çÔ­Òò£º²»Ó¦¸ÃÓÃins_data.yaw*/
-                gimbal_fdb_data.yaw_offset_angle=gim_ins.yaw;
-                gimbal_fdb_data.pit_offset_angle = gim_ins.pitch;
-                auto_staus=1;
+                gim_motor_ref[yaw_motor]=0.0f;//Â·
+                gim_motor_ref[up_pitch_motor]=pitch_calc_motor_angle(0);
+                if (fabs(gim_ins.pitch*DEGREE_2_RAD) <0.04f)//é€šè¿‡äº‘å°æ˜¯å¦æ°´å¹³åˆ¤æ–­æ˜¯å¦å®Œæˆå½’ä¸­ï¼Œç„¶åå†
+                {
+                        // gim_motor[up_pitch_motor]->set_mode(gim_motor[up_pitch_motor], DM_CMD_MOTOR_MODE);
+                        gimbal_fdb_data.back_mode = BACK_IS_OK;
+                        gimbal_fdb_data.yaw_offset_angle_total=gim_ins.yaw_total_angle;
+                        gimbal_fdb_data.pit_offset_angle=gim_ins.pitch;
+                        gimbal_fdb_data.yaw_offset_angle=gim_ins.yaw;
+
+                }
+                else
+                {
+                    gimbal_fdb_data.back_mode = BACK_STEP;
+                }
             }
             else
             {
-                gimbal_fdb_data.back_mode = BACK_IS_OK;
+                gimbal_fdb_data.back_mode = BACK_STEP;
             }
+            //ä¸‰å±‚ifåµŒå¥—å½’ä¸­
+            //ç¬¬ä¸€å±‚ï¼Œå°†ä¸‹pitchæŠ¬èµ·åˆ°ä¸€åŠï¼Œé˜²æ­¢å…¶ä»–ç”µæœºå½’ä¸­æ—¶å‘ç”Ÿå¹²æ¶‰ï¼Œå¯¼è‡´ç–¯è½¦
+            //ç¬¬äºŒå±‚å°†yawè½´å½’ä¸­å’ŒæŠŠä¸Špitchç”µæœºå½’ä¸­
+            //ç¬¬ä¸‰å±‚å¦‚æœimuæ˜¾ç¤ºæªç®¡å·²ç»åˆ°è¾¾æ°´å¹³çŠ¶æ€ï¼Œå°±çŸ«æ­£ä¸Špitchç”µæœºï¼Œä»¥ä¾¿è¿›è¡Œäº’è¡¥æ»¤æ³¢
+        }
+
             break;
-        case GIMBAL_GYRO:
 
-            gim_motor_ref[YAW] = gim_cmd.yaw;
-            gim_motor_ref[PITCH] = gim_cmd.pitch;
-            // µ×ÅÌÏà¶ÔÓÚÔÆÌ¨¹éÖĞÖµµÄ½Ç¶È£¬È¡¸º
-            gimbal_fdb_data.yaw_relative_angle = -yaw_motor_relive;
-//            gimbal_fdb_data.yaw_relative_angle = -(/*gim_ins.yaw_total_angle - */gimbal_fdb_data.yaw_offset_angle_total);
+        case GIMBAL_GYRO:
+            // dm_motor_enable_all();
+            gim_motor_ref[yaw_motor]=gim_cmd.yaw*DEGREE_2_RAD;
+            gim_motor_ref[up_pitch_motor]=pitch_calc_motor_angle(gim_cmd.pitch);
+
+            gimbal_fdb_data.yaw_relative_angle = angle_normalize(gim_motor[yaw_motor]->measure.total_angle);
             gimbal_fdb_data.yaw_offset_angle=gim_ins.yaw;
             gimbal_fdb_data.pit_offset_angle=gim_ins.pitch;
-            if (auto_staus==0)
-            {
-                auto_staus=1;
-                auto_relative_angle_status=RELATIVE_ANGLE_TRANS;
-            }
             break;
-
-            // TODO: add auto mode
         case GIMBAL_AUTO:
-            /*gim_motor_ref[YAW] = gim_cmd.yaw_auto;*/
-            if(auto_staus==1)
-            {
-                //gimbal_fdb_data.yaw_offset_angle=gim_ins.yaw;
-                auto_staus=0;
-                auto_relative_angle_status=RELATIVE_ANGLE_TRANS;
-            }
-            gim_motor_ref[YAW] =gim_cmd.yaw;
-            gim_motor_ref[PITCH] =gim_cmd.pitch;
-            // µ×ÅÌÏà¶ÔÓÚÔÆÌ¨¹éÖĞÖµµÄ½Ç¶È£¬È¡¸º
-            gimbal_fdb_data.yaw_relative_angle = -yaw_motor_relive;
-            break;
 
+            break;
+        case GIMBAL_NO_FOLLOW:
+
+            break;
+        case GIMBAL_RESET:
+            // gim_motor[up_pitch_motor]->set_mode(gim_motor[up_pitch_motor], DM_CMD_ZERO_POSITION);
+            // gim_motor[dowm_pitch_motor]->set_mode(gim_motor[dowm_pitch_motor], DM_CMD_ZERO_POSITION);
+            // gim_motor[yaw_motor]->set_mode(gim_motor[yaw_motor], DM_CMD_ZERO_POSITION);
+            // if ( gim_motor[up_pitch_motor]->ctrl_mode!=DM_CMD_ZERO_POSITION||gim_motor[dowm_pitch_motor]->ctrl_mode!=DM_CMD_ZERO_POSITION)
+            // {
+            //     // gim_motor[up_pitch_motor]->set_mode(gim_motor[up_pitch_motor], DM_CMD_ZERO_POSITION);
+            //     gim_motor[dowm_pitch_motor]->set_mode(gim_motor[up_pitch_motor], DM_CMD_ZERO_POSITION);
+            // }
+            break;
         default:
-            for (uint8_t i = 0; i < GIM_PITCH_MOTOR_NUM; i++)
-            {
-                dji_motor_relax(gim_motor_pitch[i]);
-            }
-            for (uint8_t i = 0; i < GIM_YAW_MOTOR_NUM; i++)
-            {
-                dm_motor_relax(gim_motor_yaw[i]);
-            }
+        {
+            /* é»˜è®¤æƒ…å†µä¸‹ï¼Œä¸åšç‰¹æ®Šå¤„ç†ï¼Œä»…ä¿æŒå½“å‰çŠ¶æ€ */
+        }
             break;
     }
-    /* ÓÃÓÚµ÷ÊÔ¼à²âÏß³Ìµ÷¶ÈÊ¹ÓÃ */
-    gim_dt = dwt_get_time_ms() - gim_start;
-    // vTaskDelay(1);
 }
-uint8_t data[8];
+uint16_t pwmaaa=500;
+int count_gimbal=0;
 void gimbal_control_task(){
-    /* ¸üĞÂ¸ÃÏß³ÌËùÓĞµÄ¶©ÔÄÕß */
+
     gimbal_sub_pull();
-    // gimbal_control();
-    /* ¸üĞÂ·¢²¼¸ÃÏß³ÌµÄmsg */
-    data[0] = 110;
-    data[1] = 55;
-    CAN_send(&hfdcan2,0x110,data);
+
+    /* äº‘å°æ¨¡å¼çŠ¶æ€æœºï¼šæ ¹æ® gim_cmd.ctrl_mode è¿›è¡Œå½’ä¸­/äº’è¡¥æ»¤æ³¢/å¤±èƒ½æ§åˆ¶ */
+    GimbalCtrl_StateHandler();
+
+
+    /* ä¿ç•™åŸæœ‰è°ƒè¯• CAN å‘é€ */
+    // data[0]=0;
+    // data[1]=(pwmaaa>>8)&0xff;
+    // data[2]=pwmaaa&0xff;
+    // // CAN_send(&hfdcan3,0x12,data);
+    // if (count_gimbal%4==0)
+    // {
+    //     CAN_send(&hfdcan3,0x12,data);
+    // }
+    // count_gimbal++;
     gimbal_pub_push();
 
 }
-static float control_dt[4];
-static float control_start[4];
-static float dm_send_t[4];
-float dm_obs[4];
-#define DM_RATIO 1.0f
-#define DM_OUTPUT_LIMIT  10.0f
+
+
 static void motor_enable()
 {
-    dm_motor_enable_all();  // ËùÓĞµç»ú½øÈë motor Ä£Ê½
-
-
-
-
+    dm_motor_enable_all();  // æ‰€æœ‰ç”µæœºè¿›å…¥ motor æ¨¡å¼
 }
-static float control_dt[4];
-static float control_start[4];
-static float dm_send_t[4]={0};
-float dm_obs[4];
-#define DM_RATIO 1.0f
-#define DM_OUTPUT_LIMIT  10.0f
 
-/*Ä¿Ç°ÊÇÒÔ»¤À¸½ÏÕ­µÄÒ»²àÎªÕı·½Ïò,´ÓÕı·½ÏòÏòºó¿´È¥,rigdm_front:id 2 ; rigdm_back:id 3;left_front:id 1;left_back:id 4*/
-/* 1 ºÅµç»ú */
-static dm_motor_para_t dm_control_1(dm_motor_measure_t measure)
+
+/* 1 å·ç”µæœº */
+float target_speed1=1.0f;
+static dm_motor_para_t dm_yaw_control(dm_motor_measure_t measure)
 {
-    control_dt[0] = dwt_get_time_us() - control_start[0];
-    control_start[0] = dwt_get_time_us();
+    static pid_obj_t *pid_angle;
+    static pid_obj_t *pid_speed;
+    static float get_speed, get_angle;  // é—­ç¯åé¦ˆé‡
+    static float pid_out_angle;         // è§’åº¦ç¯è¾“å‡º
+    static float send_data;        // æœ€ç»ˆå‘é€ç»™ç”µè°ƒçš„æ•°æ®
+
+    switch (gim_cmd.ctrl_mode)
+    {
+        // TODO: äº‘å°åˆå§‹åŒ–æ¨¡å¼åŠ å…¥æ–œå¡ç®—æ³•ï¼Œå¯ä»¥æ§åˆ¶å½’ä¸­æ—¶é—´
+        case GIMBAL_INIT:
+            pid_speed = gim_controller[yaw_motor].pid_speed_imu;
+            pid_angle = gim_controller[yaw_motor].pid_angle_imu;
+            get_speed = gim_motor[yaw_motor]->measure.speed_rads;
+            get_angle = gim_motor[yaw_motor]->measure.total_angle;
+            send_data=0;
+            break;
+        case GIMBAL_GYRO:
+            pid_speed = gim_controller[yaw_motor].pid_speed_imu;
+            pid_angle = gim_controller[yaw_motor].pid_angle_imu;
+            get_speed = gim_motor[yaw_motor]->measure.speed_rads;
+            get_angle = gim_motor[yaw_motor]->measure.total_angle;
+            break;
+        case GIMBAL_AUTO:
+            pid_speed = gim_controller[yaw_motor].pid_speed_auto;
+            pid_angle = gim_controller[yaw_motor].pid_angle_auto;
+            get_speed = gim_motor[yaw_motor]->measure.speed_rads;
+            get_angle = gim_motor[yaw_motor]->measure.total_angle;
+            break;
+        default:
+            break;
+    }
+    /* åˆ‡æ¢æ¨¡å¼éœ€è¦æ¸…ç©ºæ§åˆ¶å™¨å†å²çŠ¶æ€ */
+    if(gim_cmd.ctrl_mode != gim_cmd.last_mode)
+    {
+        pid_clear(pid_angle);
+        pid_clear(pid_speed);
+    }
+
+    pid_out_angle = pid_calculate(pid_angle, get_angle, gim_motor_ref[yaw_motor]);
+    // pid_out_angle = pid_calculate(pid_angle, get_angle, target_angle);
+    send_data = pid_calculate(pid_speed, get_speed, pid_out_angle);
+    float t_ff=0.5f;
+    send_data=send_data+t_ff;
+    //äº‘å°yawè½´è§’åº¦éœ€è¦çº æ­£
+
+
     static dm_motor_para_t set;
 
-//    dm_send_t[0] = WBR_T_L[1] * DM_RATIO;
-    // dm_send_t[0] = 0;
-    LIMIT_MIN_MAX(dm_send_t[0], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
-    dm_obs[0] = dm_send_t[0] ;
-
-#ifdef DM8009P_SET_ZERO
-        dm_send_t[0] = 0;
+#ifdef CLOSE_DM_MOTOR
+    send_data=0;
 #endif
-
-    LIMIT_MIN_MAX(dm_send_t[0], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
+    // send_data=0;
+    LIMIT_MIN_MAX(send_data, -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
     {
-        set.p = 0;
+        set.p =0;
         set.kp = 0;
         set.v = 0;
-        set.kd = 0;
-        set.t = dm_send_t[0]; // Õı¸ºÃ»ÎÊÌâ
+        set.kd = 0.1f;
+        set.t = send_data;
     }
     return set;
 }
-/* 2 ºÅµç»ú */
-static dm_motor_para_t dm_control_2(dm_motor_measure_t measure)
+/* 2 å·ç”µæœº */
+float target_speed2=1.5;
+float target_angle=1.5f;
+static dm_motor_para_t dm_dn_pitch_control(dm_motor_measure_t measure)
 {
-    control_dt[1] = dwt_get_time_us() - control_start[1];
-    control_start[1] = dwt_get_time_us();
+    static pid_obj_t *pid_angle;
+    static pid_obj_t *pid_speed;
+    static float get_speed, get_angle;  // é—­ç¯åé¦ˆé‡
+    static float pid_out_angle;         // è§’åº¦ç¯è¾“å‡º
+    static float send_data;        // æœ€ç»ˆå‘é€ç»™ç”µè°ƒçš„æ•°æ®
+
+    switch (gim_cmd.ctrl_mode)
+    {
+        // TODO: äº‘å°åˆå§‹åŒ–æ¨¡å¼åŠ å…¥æ–œå¡ç®—æ³•ï¼Œå¯ä»¥æ§åˆ¶å½’ä¸­æ—¶é—´
+        case GIMBAL_INIT:
+            pid_speed = gim_controller[dowm_pitch_motor].pid_speed_imu;
+            pid_angle = gim_controller[dowm_pitch_motor].pid_angle_imu;
+            get_speed = gim_motor[1]->measure.speed_rads;
+            get_angle = gim_motor[1]->measure.total_angle;
+            send_data=0;
+            break;
+        case GIMBAL_GYRO:
+            pid_speed = gim_controller[dowm_pitch_motor].pid_speed_imu;
+            pid_angle = gim_controller[dowm_pitch_motor].pid_angle_imu;
+            get_speed = gim_motor[1]->measure.speed_rads;
+            get_angle = gim_motor[1]->measure.total_angle;
+            break;
+        case GIMBAL_AUTO:
+            pid_speed = gim_controller[dowm_pitch_motor].pid_speed_auto;
+            pid_angle = gim_controller[dowm_pitch_motor].pid_angle_auto;
+            get_speed = gim_motor[1]->measure.speed_rads;
+            get_angle = gim_motor[1]->measure.total_angle;
+            break;
+        default:
+            break;
+    }
+    /* åˆ‡æ¢æ¨¡å¼éœ€è¦æ¸…ç©ºæ§åˆ¶å™¨å†å²çŠ¶æ€ */
+    if(gim_cmd.ctrl_mode != gim_cmd.last_mode)
+    {
+        pid_clear(pid_angle);
+        pid_clear(pid_speed);
+    }
+
+    pid_out_angle = pid_calculate(pid_angle, get_angle, gim_motor_ref[dowm_pitch_motor]);
+    // pid_out_angle = pid_calculate(pid_angle, get_angle, target_angle);
+    send_data = pid_calculate(pid_speed, get_speed, pid_out_angle);
+    float t_ff=40.0f*arm_cos_f32(get_angle*DEGREE_2_RAD)*0.012f;
+    send_data=send_data+t_ff;
+    //äº‘å°yawè½´è§’åº¦éœ€è¦çº æ­£
+
+
     static dm_motor_para_t set;
 
-
-//    dm_send_t[1] = -WBR_T_R[1] * DM_RATIO;
-    // dm_send_t[1] = 0;
-    LIMIT_MIN_MAX(dm_send_t[1], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
-    dm_obs[1] = dm_send_t[1] ;
-
-
-
-#ifdef DM8009P_SET_ZERO
-        dm_send_t[1] = 0;
+#ifdef CLOSE_DM_MOTOR
+    send_data=0;
 #endif
-
-    LIMIT_MIN_MAX(dm_send_t[1], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
+    // send_data=0;
+    LIMIT_MIN_MAX(send_data, -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
     {
-        set.p = 0;
+        set.p =0;
         set.kp = 0;
         set.v = 0;
-        set.kd = 0;
-        set.t = dm_send_t[1]; // Õı¸ºÃ»ÎÊÌâ
+        set.kd = 0.1f;
+        set.t = send_data;
     }
     return set;
 }
-/* 3 ºÅµç»ú */
-static dm_motor_para_t dm_control_3(dm_motor_measure_t measure)
+/* 3 å·ç”µæœº */
+
+float target_speed3=0.0;
+float target_angle3=1.5f;
+static dm_motor_para_t dm_up_control(dm_motor_measure_t measure)
 {
-    control_dt[2] = dwt_get_time_us() - control_start[2];
-    control_start[2] = dwt_get_time_us();
+    static pid_obj_t *pid_angle;
+    static pid_obj_t *pid_speed;
+    static float get_speed, get_angle;  // é—­ç¯åé¦ˆé‡
+    static float pid_out_angle;         // è§’åº¦ç¯è¾“å‡º
+    static float send_data;        // æœ€ç»ˆå‘é€ç»™ç”µè°ƒçš„æ•°æ®
+
+    switch (gim_cmd.ctrl_mode)
+    {
+        // TODO: äº‘å°åˆå§‹åŒ–æ¨¡å¼åŠ å…¥æ–œå¡ç®—æ³•ï¼Œå¯ä»¥æ§åˆ¶å½’ä¸­æ—¶é—´
+        case GIMBAL_INIT:
+            pid_speed = gim_controller[up_pitch_motor].pid_speed_imu;
+            pid_angle = gim_controller[up_pitch_motor].pid_angle_imu;
+            get_speed = gim_motor[up_pitch_motor]->measure.speed_rads;
+            get_angle = gim_motor[up_pitch_motor]->measure.total_angle;
+            send_data=0;
+            break;
+        case GIMBAL_GYRO:
+            pid_speed = gim_controller[up_pitch_motor].pid_speed_imu;
+            pid_angle = gim_controller[up_pitch_motor].pid_angle_imu;
+            get_speed = gim_motor[up_pitch_motor]->measure.speed_rads;
+            get_angle = gim_motor[up_pitch_motor]->measure.total_angle;
+            break;
+        case GIMBAL_AUTO:
+            pid_speed = gim_controller[up_pitch_motor].pid_speed_auto;
+            pid_angle = gim_controller[up_pitch_motor].pid_angle_auto;
+            get_speed = gim_motor[up_pitch_motor]->measure.speed_rads;
+            get_angle = gim_motor[up_pitch_motor]->measure.total_angle;
+            break;
+        default:
+            break;
+    }
+    /* åˆ‡æ¢æ¨¡å¼éœ€è¦æ¸…ç©ºæ§åˆ¶å™¨å†å²çŠ¶æ€ */
+    if(gim_cmd.ctrl_mode != gim_cmd.last_mode)
+    {
+        pid_clear(pid_angle);
+        pid_clear(pid_speed);
+    }
+
+    pid_out_angle = pid_calculate(pid_angle, get_angle, gim_motor_ref[up_pitch_motor]);
+    // pid_out_angle = pid_calculate(pid_angle, get_angle, target_angle3);
+    send_data = pid_calculate(pid_speed, get_speed, pid_out_angle);
+    float t_ff=15.0f*arm_cos_f32(pitch_filtered*DEGREE_2_RAD)*0.005f;
+    // float t_ff=0.15f;
+    send_data=send_data+t_ff;
+    //äº‘å°yawè½´è§’åº¦éœ€è¦çº æ­£
+
+
     static dm_motor_para_t set;
 
-//    dm_send_t[2] = -WBR_T_R[0] * DM_RATIO ;
-    // dm_send_t[2] = 0;
-    LIMIT_MIN_MAX(dm_send_t[2], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
-    dm_obs[2] = dm_send_t[2] ;
-
-
-#ifdef DM8009P_SET_ZERO
-        dm_send_t[2] = 0;
+#ifdef CLOSE_DM_MOTOR
+    send_data=0;
 #endif
-
-    LIMIT_MIN_MAX(dm_send_t[2], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
+    // send_data=0;
+    LIMIT_MIN_MAX(send_data, -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
     {
-        set.p = 0;
+        set.p =0;
         set.kp = 0;
         set.v = 0;
-        set.kd = 0;
-        set.t = dm_send_t[2]; // Õı¸ºÃ»ÎÊÌâ
+        set.kd = 0.1f;
+        set.t = send_data;
     }
     return set;
 }
-/* 4 ºÅµç»ú */
-static dm_motor_para_t dm_control_4(dm_motor_measure_t measure)
-{
-    control_dt[3] = dwt_get_time_us() - control_start[3];
-    control_start[3] = dwt_get_time_us();
-    static dm_motor_para_t set;
 
-    // Ã¿´ÎÉÏµç¹éÖĞµç»ú¸ø¶¨Ò»¸öÊÊµ±µÄÁ¦¾Ø£¬²¢³ÖĞø£¬È·±£×²µ½ÏŞÎ»
-
-//    dm_send_t[3] = WBR_T_L[0] * DM_RATIO;
-    // dm_send_t[3] = 0;
-    LIMIT_MIN_MAX(dm_send_t[3], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
-    dm_obs[3] = dm_send_t[3];
-
-
-#ifdef DM8009P_SET_ZERO
-    dm_send_t[3] = 0;
-
-#endif
-
-    LIMIT_MIN_MAX(dm_send_t[3], -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
-    {
-        set.p = 0;
-        set.kp = 0;
-        set.v = 0;
-        set.kd = 0;
-        set.t = dm_send_t[3]; // Õı¸ºÃ»ÎÊÌâ
-    }
-    return set;
-}
-/* µ×ÅÌÃ¿¸öµç»ú¶ÔÓ¦µÄ¿ØÖÆº¯Êı */
-static void *dm_control[4] =
+/* åº•ç›˜æ¯ä¸ªç”µæœºå¯¹åº”çš„æ§åˆ¶å‡½æ•° */
+static void *dm_control[3] =
         {
-                dm_control_1,
-                dm_control_2,
-                dm_control_3,
-                dm_control_4,
+                dm_yaw_control,
+                dm_dn_pitch_control,
+                dm_up_control,
         };
-/* ------------------------------------------------ ÔÆÌ¨¿ØÖÆÏà¹Ø ----------------------------------------------------- */
+/* ------------------------------------------------ äº‘å°æ§åˆ¶ç›¸å…³ ----------------------------------------------------- */
 /**
- * @brief ×¢²áÔÆÌ¨µç»ú¼°Æä¿ØÖÆÆ÷³õÊ¼»¯
+ * @brief æ³¨å†Œäº‘å°ç”µæœºåŠå…¶æ§åˆ¶å™¨åˆå§‹åŒ–
  */
 static void gimbal_motor_init()
 {
 /* ----------------------------------- yaw ---------------------------------- */
     for (int i=0; i<3; i++)
     {
-        gim_motor_yaw[i]=dm_motor_register(&gimbal_motor_config[i],dm_control[i]);
+        gim_motor[i]=dm_motor_register(&gimbal_motor_config[i],dm_control[i]);
     }
-    // dm_motor_enable_all();  // ËùÓĞµç»ú½øÈë motor Ä£Ê½
+    // dm_motor_enable_all();  // æ‰€æœ‰ç”µæœºè¿›å…¥ motor æ¨¡å¼
     motor_enable();
 }
-int16_t test_speed_yaw, test_speed_pitch=0;
-static int16_t motor_control_yaw(dji_motor_measure_t measure){
-    /* PID¾Ö²¿Ö¸Õë£¬ÇĞ»»²»Í¬Ä£Ê½ÏÂPID¿ØÖÆÆ÷ */
-    static pid_obj_t *pid_angle;
-    static pid_obj_t *pid_speed;
-    static float get_speed, get_angle;  // ±Õ»··´À¡Á¿
-    static float pid_out_angle;         // ½Ç¶È»·Êä³ö
-    static int16_t send_data;        // ×îÖÕ·¢ËÍ¸øµçµ÷µÄÊı¾İ
-
-    switch (gim_cmd.ctrl_mode)
-    {
-        // TODO: ÔÆÌ¨³õÊ¼»¯Ä£Ê½¼ÓÈëĞ±ÆÂËã·¨£¬¿ÉÒÔ¿ØÖÆ¹éÖĞÊ±¼ä
-        case GIMBAL_INIT:
-            pid_speed = gim_controller[YAW].pid_speed_imu;
-            pid_angle = gim_controller[YAW].pid_angle_imu;
-            get_speed = gim_ins.gyro[Z];
-            get_angle = -yaw_motor_relive;
-            break;
-        case GIMBAL_GYRO:
-            pid_speed = gim_controller[YAW].pid_speed_imu;
-            pid_angle = gim_controller[YAW].pid_angle_imu;
-            // // ½«imuÁãÆ®Çå0£¬ÎŞÄÎÖ®¾Ù£¬ÆÚ´ıimuÁãÆ®ÎÊÌâµÄ½â¾ö
-            // if(get_speed < 0.5 && get_speed > -0.5)
-            // {
-            //     get_speed = 0;
-            // }
-            // if(get_angle < 0.5 && get_angle > -0.5)
-            // {
-            //     get_angle = 0;
-            // }
-            get_speed = gim_ins.gyro[Z];
-            get_angle = gim_ins.yaw_total_angle - gimbal_fdb_data.yaw_offset_angle_total;
-
-            break;
-        case GIMBAL_AUTO:
-            pid_speed = gim_controller[YAW].pid_speed_auto;
-            pid_angle = gim_controller[YAW].pid_angle_auto;
-            get_speed = gim_ins.gyro[Z];
-            get_angle = gim_ins.yaw_total_angle - gimbal_fdb_data.yaw_offset_angle_total;
-            break;
-        default:
-            break;
-    }
-    /* ÇĞ»»Ä£Ê½ĞèÒªÇå¿Õ¿ØÖÆÆ÷ÀúÊ·×´Ì¬ */
-    if(gim_cmd.ctrl_mode != gim_cmd.last_mode)
-    {
-        pid_clear(pid_angle);
-        pid_clear(pid_speed);
-        pid_clear(gim_controller[YAW].pid_angle_imu);
-        pid_clear(gim_controller[YAW].pid_speed_imu);
-        pid_clear(gim_controller[YAW].pid_angle_auto);
-        pid_clear(gim_controller[YAW].pid_speed_auto);
-    }
-
-
-    if(gim_cmd.ctrl_mode == GIMBAL_INIT)  // ±àÂëÆ÷±Õ»·
-    {
-        /* ×¢Òâ¸ººÅ */
-        pid_angle->ITerm =0;
-        pid_angle->Iout =0;
-        pid_speed->ITerm =0;
-        pid_speed->Iout =0;
-        pid_out_angle = pid_calculate(pid_angle, get_angle, gim_motor_ref[YAW]);  // ±àÂëÆ÷Ôö³¤·½ÏòÓëimuÏà·´
-        send_data = pid_calculate(pid_speed, get_speed, pid_out_angle);     // µç»ú×ª¶¯Õı·½ÏòÓëimuÏà·´
-    }
-    else if(gim_cmd.ctrl_mode != GIMBAL_RELAX && gim_cmd.ctrl_mode != GIMBAL_INIT) /* imu±Õ»· */
-    {
-        /* ×¢Òâ¸ººÅ */
-        pid_out_angle = pid_calculate(pid_angle, get_angle, gim_motor_ref[YAW]);
-        // float feedforward = 500 * pid_out_angle; //+ 50 * filtered_accel  ; //¼òµ¥¹À¼ÆÇ°À¡Á¿
-        send_data = pid_calculate(pid_speed, get_speed, pid_out_angle);// + feedforward;      // µç»ú×ª¶¯Õı·½ÏòÓëimuÏà·´
-    }
-
-    return send_data;
-}
-
-static int16_t motor_control_pitch(dji_motor_measure_t measure){
-    /* PID¾Ö²¿Ö¸Õë£¬ÇĞ»»²»Í¬Ä£Ê½ÏÂPID¿ØÖÆÆ÷ */
-    static pid_obj_t *pid_angle;
-    static pid_obj_t *pid_speed;
-    static float get_speed, get_angle;  // ±Õ»··´À¡Á¿
-    static float pid_out_angle;         // ½Ç¶È»·Êä³ö
-    static int16_t send_data;        // ×îÖÕ·¢ËÍ¸øµçµ÷µÄÊı¾İ
-    static uint32_t FEEDBACK_DWT_CNT;   //¼ÇÂ¼Ê±¼ä´Á
-    static float filtered_accel;
-
-    switch (gim_cmd.ctrl_mode)
-    {
-        /* ¸ù¾İÔÆÌ¨Ä£Ê½£¬ÇĞ»»¶ÔÓ¦µÄ¿ØÖÆÆ÷¼°¹Û²âÁ¿ */
-        case GIMBAL_INIT:// TODO: ÔÆÌ¨³õÊ¼»¯Ä£Ê½¼ÓÈëĞ±ÆÂËã·¨£¬¿ÉÒÔ¿ØÖÆ¹éÖĞÊ±¼ä
-            pid_speed = gim_controller[PITCH].pid_speed_imu;
-            pid_angle = gim_controller[PITCH].pid_angle_imu;
-            get_speed = gim_ins.gyro[Y];
-            get_angle = gim_ins.pitch;  //pitchÖá¸ÄÓÃË¿¸Ë½á¹¹£¬Ö±½ÓÊ¹ÓÃins_data.pitch×÷ÎªÏà¶Ô½Ç¶ÈÖµ
-            break;
-        case GIMBAL_GYRO:
-            pid_speed = gim_controller[PITCH].pid_speed_imu;
-            pid_angle = gim_controller[PITCH].pid_angle_imu;
-            get_speed = gim_ins.gyro[Y];
-            get_angle = gim_ins.pitch;
-            break;
-        case GIMBAL_AUTO:
-            pid_speed = gim_controller[PITCH].pid_speed_auto;
-            pid_angle = gim_controller[PITCH].pid_angle_auto;
-            get_speed = gim_ins.gyro[Y];
-            get_angle = gim_ins.pitch;
-            break;
-        default:
-            break;
-    }
-    /* ÇĞ»»Ä£Ê½ĞèÒªÇå¿Õ  ¿ØÖÆÆ÷ÀúÊ·×´Ì¬ */
-    if(gim_cmd.ctrl_mode != gim_cmd.last_mode)
-    {
-        pid_clear(pid_angle);
-        pid_clear(pid_speed);
-        pid_clear(gim_controller[PITCH].pid_angle_imu);
-        pid_clear(gim_controller[PITCH].pid_speed_imu);
-        pid_clear(gim_controller[PITCH].pid_angle_auto);
-        pid_clear(gim_controller[PITCH].pid_speed_auto);
-    }
-
-    // ¶ÔÓÚÓ¢ĞÛµÄpitchÖá£¬ÓÉÓÚ²ÉÓÃË¿¸Ë½á¹¹£¬±àÂëÆ÷ÊıÖµÎŞ·¨×÷Îª¹éÖĞÎ»ÖÃµÄ²Î¿¼£¬¹Ê¾ù²ÉÓÃimu±Õ»·
-    if(gim_cmd.ctrl_mode == GIMBAL_AUTO)  // ±àÂëÆ÷±Õ»·
-    {
-        /*´®¼¶pidµÄÊ¹ÓÃ£¬½Ç¶È»·Ì×ÔÚËÙ¶È»·ÉÏÃæ*/
-        /* ×¢Òâ¸ººÅ */
-        pid_out_angle = pid_calculate(pid_angle, get_angle, gim_motor_ref[PITCH]);
-
-        float feedforward = 25 * pid_out_angle; //+ 50 * filtered_accel  ; //¼òµ¥¹À¼ÆÇ°À¡Á¿
-        send_data = -pid_calculate(pid_speed, get_speed, pid_out_angle) - feedforward;     // µç»ú×ª¶¯Õı·½ÏòÓëimuÏà·´
-    }
-    else /* imu±Õ»· */
-    {
-        /* ÏŞÖÆÔÆÌ¨¸©Ñö½Ç¶È */
-        VAL_LIMIT(gim_motor_ref[PITCH], PIT_ANGLE_MIN, PIT_ANGLE_MAX);
-
-        pid_out_angle = pid_calculate(pid_angle, get_angle, gim_motor_ref[PITCH]);
-
-        float feedforward = 50 * pid_out_angle; //+ 50 * filtered_accel  ; //¼òµ¥¹À¼ÆÇ°À¡Á¿
-        send_data = -pid_calculate(pid_speed, get_speed, pid_out_angle) - feedforward ;      // µç»ú×ª¶¯Õı·½ÏòÓëimuÏà·´
-    }
-
-    return send_data;
-}
-
-/**
- * @brief Get the relative pos object
- *
- * @param raw_ecd  Êµ¼ÊµÄ±àÂëÆ÷Öµ
- * @param center_offset Ïà¶ÔµÄ²Î¿¼±àÂëÆ÷Öµ
- * @return int16_t
- */
-int16_t get_relative_pos(int16_t raw_ecd, int16_t center_offset)
+static void gimbal_pid_init()
 {
-    int16_t tmp = 0;
-    if (center_offset >= 4095){
-        if (raw_ecd > center_offset - 4095)
-            tmp = raw_ecd - center_offset;
-        else
-            tmp = raw_ecd + 8191 - center_offset;
-    }
-    else{
-        if (raw_ecd > center_offset + 4095)
-            tmp = raw_ecd - 8191 - center_offset;
-        else
-            tmp = raw_ecd - center_offset;
-    }
-    return tmp;
+      pid_config_t yaw_speed_imu_config = INIT_PID_CONFIG(YAW_KP_V_IMU, YAW_KI_V_IMU, YAW_KD_V_IMU, YAW_INTEGRAL_V_IMU, YAW_MAX_V_IMU,
+                                                        (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+    pid_config_t yaw_angle_imu_config = INIT_PID_CONFIG(YAW_KP_A_IMU, YAW_KI_A_IMU, YAW_KD_A_IMU, YAW_INTEGRAL_A_IMU, YAW_MAX_A_IMU,
+                                                        (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+
+    // TODO: è‡ªç„æ¨¡å¼å‚æ•°å¾…è°ƒ
+    pid_config_t yaw_speed_auto_config = INIT_PID_CONFIG(YAW_KP_V_AUTO, YAW_KI_V_AUTO, YAW_KD_V_AUTO, YAW_INTEGRAL_V_AUTO, YAW_MAX_V_AUTO,
+                                                         (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+    pid_config_t yaw_angle_auto_config = INIT_PID_CONFIG(YAW_KP_A_AUTO, YAW_KI_A_AUTO, YAW_KD_A_AUTO, YAW_INTEGRAL_A_AUTO, YAW_MAX_A_AUTO,
+                                                         (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+
+    gim_controller[yaw_motor].pid_speed_imu = pid_register(&yaw_speed_imu_config);
+    gim_controller[yaw_motor].pid_angle_imu = pid_register(&yaw_angle_imu_config);
+    gim_controller[yaw_motor].pid_speed_auto = pid_register(&yaw_speed_auto_config);
+    gim_controller[yaw_motor].pid_angle_auto = pid_register(&yaw_angle_auto_config);
+
+/* ---------------------------------- pitch --------------------------------- */
+    pid_config_t up_pitch_speed_imu_config = INIT_PID_CONFIG(UP_PITCH_KP_V_IMU, UP_PITCH_KI_V_IMU, UP_PITCH_KD_V_IMU, UP_PITCH_INTEGRAL_V_IMU, UP_PITCH_MAX_V_IMU,
+                                                          (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+    pid_config_t up_pitch_angle_imu_config = INIT_PID_CONFIG(UP_PITCH_KP_A_IMU, UP_PITCH_KI_A_IMU, UP_PITCH_KD_A_IMU, UP_PITCH_INTEGRAL_A_IMU, UP_PITCH_MAX_A_IMU,
+                                                          (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+
+    // TODO: è‡ªç„æ¨¡å¼å‚æ•°å¾…è°ƒ
+    pid_config_t up_pitch_speed_auto_config = INIT_PID_CONFIG(UP_PITCH_KP_V_AUTO, UP_PITCH_KI_V_AUTO, UP_PITCH_KD_V_AUTO, UP_PITCH_INTEGRAL_V_AUTO, UP_PITCH_MAX_V_AUTO,
+                                                           (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+    pid_config_t up_pitch_angle_auto_config = INIT_PID_CONFIG(UP_PITCH_KP_A_AUTO, UP_PITCH_KI_A_AUTO, UP_PITCH_KD_A_AUTO, UP_PITCH_INTEGRAL_A_AUTO, UP_PITCH_MAX_A_AUTO,
+                                                           (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+
+    gim_controller[up_pitch_motor].pid_speed_imu = pid_register(&up_pitch_speed_imu_config);
+    gim_controller[up_pitch_motor].pid_angle_imu = pid_register(&up_pitch_angle_imu_config);
+    gim_controller[up_pitch_motor].pid_speed_auto = pid_register(&up_pitch_speed_auto_config);
+    gim_controller[up_pitch_motor].pid_angle_auto = pid_register(&up_pitch_angle_auto_config);
+
+    pid_config_t dn_pitch_speed_imu_config = INIT_PID_CONFIG(DN_PITCH_KP_V_IMU, DN_PITCH_KI_V_IMU, DN_PITCH_KD_V_IMU, DN_PITCH_INTEGRAL_V_IMU, DN_PITCH_MAX_V_IMU,
+                                                          (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+    pid_config_t dn_pitch_angle_imu_config = INIT_PID_CONFIG(DN_PITCH_KP_A_IMU, DN_PITCH_KI_A_IMU, DN_PITCH_KD_A_IMU, DN_PITCH_INTEGRAL_A_IMU, DN_PITCH_MAX_A_IMU,
+                                                          (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+
+    // TODO: è‡ªç„æ¨¡å¼å‚æ•°å¾…è°ƒ
+    pid_config_t dn_pitch_speed_auto_config = INIT_PID_CONFIG(DN_PITCH_KP_V_AUTO, DN_PITCH_KI_V_AUTO, DN_PITCH_KD_V_AUTO, DN_PITCH_INTEGRAL_V_AUTO, DN_PITCH_MAX_V_AUTO,
+                                                           (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+    pid_config_t dn_pitch_angle_auto_config = INIT_PID_CONFIG(DN_PITCH_KP_A_AUTO, DN_PITCH_KI_A_AUTO, DN_PITCH_KD_A_AUTO, DN_PITCH_INTEGRAL_A_AUTO, DN_PITCH_MAX_A_AUTO,
+                                                           (PID_Trapezoid_Intergral | PID_Integral_Limit | PID_Derivative_On_Measurement));
+
+    gim_controller[dowm_pitch_motor].pid_speed_imu = pid_register(&dn_pitch_speed_imu_config);
+    gim_controller[dowm_pitch_motor].pid_angle_imu = pid_register(&dn_pitch_angle_imu_config);
+    gim_controller[dowm_pitch_motor].pid_speed_auto = pid_register(&dn_pitch_speed_auto_config);
+    gim_controller[dowm_pitch_motor].pid_angle_auto = pid_register(&dn_pitch_angle_auto_config);
+
+
+
 }
 
-
-/******************************************************ÏûÏ¢¶©ÔÄ*************************************************************************/
-/**
- * @brief cmd Ïß³ÌÖĞËùÓĞ·¢²¼ÕßÍÆËÍ¸üĞÂ»°Ìâ
- */
 static void gimbal_pub_push(void)
 {
     // data_content my_data = ;
@@ -576,7 +560,7 @@ static void gimbal_pub_push(void)
 }
 
 /**
- * @brief cmd Ïß³ÌÖĞËùÓĞ¶©ÔÄÕß³õÊ¼»¯
+ * @brief cmd çº¿ç¨‹ä¸­æ‰€æœ‰è®¢é˜…è€…åˆå§‹åŒ–
  */
 static void gimbal_sub_init(void)
 {
@@ -588,7 +572,7 @@ static void gimbal_sub_init(void)
 
 
 /**
- * @brief cmd Ïß³ÌÖĞËùÓĞ¶©ÔÄÕß»ñÈ¡¸üĞÂ»°Ìâ
+ * @brief cmd çº¿ç¨‹ä¸­æ‰€æœ‰è®¢é˜…è€…è·å–æ›´æ–°è¯é¢˜
  */
 static void gimbal_sub_pull(void)
 {
@@ -612,6 +596,63 @@ static void gimbal_sub_pull(void)
         mcn_copy(MCN_HUB(gimbal_ins_topic), gimbal_ins_node, &gim_ins);
     }
 }
+//è§„å®šå‘å·¦è½¬ï¼Œä¸ºæ­£æ–¹å‘
+//ä»…ä½¿ç”¨å¼§åº¦åˆ¶ï¼Œè®¡ç®—sin cosæ—¶ä¹Ÿæ˜¯ä½¿ç”¨å¼§åº¦åˆ¶ï¼Œ
+//äº‘å°çš„æ‰€æœ‰è§’åº¦å‡ä½¿ç”¨å¼§åº¦åˆ¶
+//å°†äº‘å°çš„å…³èŠ‚ç”µæœºè§’åº¦èŒƒå›´è®¾ç½®æˆ2PIï¼Œä¸ç®¡æ˜¯åé¦ˆå¾—åˆ°çš„è§’åº¦æ˜¯å¤šå°‘ï¼Œéƒ½å¯ä»¥æ­£å¸¸è¿›è¡Œå½’ä¸­
+float angle_normalize(float angle_deg)
+{
+    if (angle_deg > PI)
+    {
+        angle_deg -= PI*2.000f;
+    }
 
+    else if (angle_deg < -PI)
+    {
+        angle_deg += PI*2.000f;
+    }
+    return angle_deg;
+}
 
+/**
+ *
+ * @param ref_angle pitchæœŸæœ›è§’åº¦
+ * @param ctrl_angle å‘é€ç»™ç”µæœºçš„æ§åˆ¶è§’åº¦
+ * @brief imu pitchä»¥æŠ¬å¤´ä¸ºæ­£æ–¹å‘ï¼Œ yawå‘å·¦è½¬ä¸ºæ­£æ–¹å‘
+ * @return è¿”å›å¼§åº¦åˆ¶
+ */
+////TODOäº’è¡¥æ»¤æ³¢å®Œæˆä¹‹åï¼Œå°†IMUæ›¿æ¢æ‰ï¼Œæ¢æˆæ»¤æ³¢ä¹‹åçš„ä¸œè¥¿
+////TODO ä¹‹ååšå¥½è½¯ä»¶é™ä½ï¼Œä¸è¦å¼€æœºçš„æ—¶å€™ï¼Œè§’åº¦è¶…é™
+///TODO
 
+float pitch_calc_motor_angle(float ref_angle)
+{
+    if (fabs(last_pitch-gim_ins.pitch)>0.0010f)
+    // if (last_pitch!=gim_ins.pitch)
+    {
+
+        pitch_filtered = 0.05f * pitch_filtered + 0.95f * gim_ins.pitch;
+        last_pitch=gim_ins.pitch;
+        // ref_angle = angle_normalize(ref_angle*DEGREE_2_RAD);
+        ref_angle = ref_angle*DEGREE_2_RAD;
+        float error=ref_angle-pitch_filtered*DEGREE_2_RAD;
+        float ctrl_angle=gim_motor[up_pitch_motor]->measure.total_angle-error/UP_PITCH_REDUCTION;
+        lastoutput=ctrl_angle;
+        return ctrl_angle;
+    }
+    else
+    {
+        return lastoutput;
+    }
+}
+
+/**
+ *
+ * @return è¿”å›å•çº¯ç”±å…³èŠ‚ç”µæœºå¾—åˆ°çš„pitchè½´è§’åº¦
+ * @brief åœ¨äº‹å…ˆæ ¡å‡†ï¼Œä½¿æªç®¡æ°´å¹³çš„æ—¶å€™ï¼Œå…³èŠ‚ç”µæœºä½ç½®ä¸º0ï¼Œè¿™æ ·èƒ½å¤Ÿæ­£å¸¸åé¦ˆå¾—åˆ°ç”±å…³èŠ‚ç”µæœºåé¦ˆå¾—åˆ°çš„pitchè§’åº¦
+ */
+float get_pitch_form_motor()
+{
+    float pitch_angle=gim_motor[up_pitch_motor]->measure.total_angle*UP_PITCH_REDUCTION;
+    return pitch_angle;
+}

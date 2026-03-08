@@ -62,14 +62,45 @@ void ins_task_init(){
     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
     BMI088_Read(&BMI088);
     ins_init();
-    gimbal_imu = dm_imu_init(0x10,0x11,&hfdcan3);/*位于云台的dm_imu*/
+    gimbal_imu = dm_imu_init(0x10,0x09,&hfdcan3);/*位于云台的dm_imu*/
     dt = dwt_get_delta(&ins_dwt);
     ins_start = dwt_get_time_ms();
 
     ins_wake_time = osKernelSysTick();
     LOGINFO("[freeRTOS] Ins Task Start\r\n");
-
+    //文总是全栈工程师
 }
+// void ins_task_init(){
+//     /* USER CODE BEGIN InsTask */
+//     imu_temp_pid = pid_register(&imu_temp_config);
+//     HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_4);
+//     BMI088_Read(&BMI088);
+//     ins_init();
+//
+//     gimbal_imu = dm_imu_init(0x10, 0x11, &hfdcan3);
+//
+//     // ========== 配置DM IMU为主动模式 ==========
+//     osDelay(100);  // 等待IMU上电稳定
+//
+//     imu_change_to_active();  // 切换到主动模式
+//     osDelay(10);
+//
+//     imu_set_active_mode_delay(1);  // 设置1ms发送间隔（1000Hz）
+//     osDelay(10);
+//
+//     imu_save_parameters();  // 保存配置
+//     osDelay(100);
+//
+//     imu_reboot();  // 重启生效
+//     osDelay(500);
+//     // ==========================================
+//
+//     dt = dwt_get_delta(&ins_dwt);
+//     ins_start = dwt_get_time_ms();
+//     ins_wake_time = osKernelSysTick();
+//     LOGINFO("[freeRTOS] Ins Task Start\r\n");
+// }
+
 void ins_control()
 {
 
@@ -150,24 +181,27 @@ void ins_control()
 }
 static uint8_t imu_flag=0;
 void dm_imu_control(){
-    if(imu_flag == 3)imu_flag=0;
+    if(imu_flag == 4)imu_flag=0;
     switch (imu_flag) {
         case 0:
-            imu_request_accel();
+            // imu_request_accel();
             break;
         case 1:
             imu_request_gyro();
             break;
         case 2:
+
+            break;
+        case 3:
             imu_request_euler();
             break;
     }
     imu_flag++;
-
+    // osDelay(1);
 }
 void ins_control_task(){
     ins_control();
-    // dm_imu_control();
+    dm_imu_control();
 }
 /**
  * @brief 初始化 ins 解算系统

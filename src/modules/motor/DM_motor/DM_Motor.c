@@ -127,16 +127,34 @@ static void dm_motor_control(void const *parameter)
     {
         memset(data_buf, 0xff, 7);  // 发送电机指令的时候前面7bytes都是0xff
         data_buf[7] = (uint8_t)motor->to_mode; // 最后一位是命令id
-        CAN_send(motor->fdcan, motor->tx_id, data_buf);  // 发送报文
+        if (motor->set_control_mode==POSITION_SPEED)
+        {
+            CAN_send(motor->fdcan, motor->tx_id+0x100, data_buf);  // 发送报文
+        }
+        if (motor->set_control_mode==MIT)
+        {
+            CAN_send(motor->fdcan, motor->tx_id, data_buf);  // 发送报文
+        }
         motor->ctrl_mode = motor->to_mode;  // 切换模式成功
         osSemaphoreRelease(motor->turn_complete);
     }
     else /* 不需要切换模式情况，发送控制值 */
     {
         if (motor->ctrl_mode == DM_CMD_MOTOR_MODE) {
+            // memset(data_buf, 0xff, 7);  // 发送电机指令的时候前面7bytes都是0xff
+            // data_buf[7] = (uint8_t)motor->ctrl_mode; // 最后一位是命令id
+            // CAN_send(motor->fdcan, motor->tx_id, data_buf);  // 发送报文
             set = control_get;
             pack_contol_para(*motor,set, data_buf); // 将控制参数打包成报文数据帧
-            CAN_send(motor->fdcan, motor->tx_id, data_buf);  // 发送报文
+
+            if (motor->set_control_mode==POSITION_SPEED)
+            {
+                CAN_send(motor->fdcan, motor->tx_id+0x100, data_buf);  // 发送报文
+            }
+            if (motor->set_control_mode==MIT)
+            {
+                CAN_send(motor->fdcan, motor->tx_id, data_buf);  // 发送报文
+            }
 
         }
         else if(motor->ctrl_mode == DM_CMD_RESET_MODE){ //确保失能
@@ -157,6 +175,10 @@ void dm_controll_all_poll(void)
     dm_motor_control(&dm_motor_obj[i++]);
     if(i==idx)
         i=0;
+    // for (int i = 0; i < idx; i++)
+    // {
+    //     dm_motor_control(&dm_motor_obj[i]);
+    // }
 }
 
 /**
@@ -165,12 +187,14 @@ void dm_controll_all_poll(void)
  * @param cmd
  * @param motor
  */
-static void motor_set_mode(dm_motor_object_t *motor, dm_motor_mode_e cmd)
+static void  motor_set_mode(dm_motor_object_t *motor, dm_motor_mode_e cmd)
 {
     if(motor->ctrl_mode == cmd) return; // 电机已经处于该模式,直接返回
 
     motor->to_mode = cmd;
+
     osSemaphoreWait(motor->turn_complete, 20);
+    // vTaskDelay(10);
 }
 
 
@@ -187,7 +211,12 @@ void dm_motor_enable_all()
     for (size_t i = 0; i < idx; i++)
     {
         motor_set_mode(&dm_motor_obj[i], DM_CMD_MOTOR_MODE);
+
     }
+    // static uint8_t i;
+    // motor_set_mode(&dm_motor_obj[i++], DM_CMD_MOTOR_MODE);
+    // if(i==idx)
+    //     i=0;
 }
 
 void dm_motor_disable_all()
@@ -196,6 +225,10 @@ void dm_motor_disable_all()
     {
         motor_set_mode(&dm_motor_obj[i], DM_CMD_RESET_MODE);
     }
+    // static uint8_t i;
+    // motor_set_mode(&dm_motor_obj[i++], DM_CMD_RESET_MODE);
+    // if(i==idx)
+    //     i=0;
 }
 
 /**
@@ -234,8 +267,23 @@ dm_motor_object_t *dm_motor_register(motor_config_t *config, void *control)
     dm_motor_obj[idx].ctrl_mode = DM_CMD_RESET_MODE;
     dm_motor_obj[idx].to_mode = DM_CMD_RESET_MODE;
     motor_set_mode(&dm_motor_obj[idx], DM_CMD_RESET_MODE);   // 初始化为 RESET 模式
-    dm_motor_obj[idx].set_control_mode = MIT;                       //设置控制模式
-
+    // dm_motor_obj[idx].set_control_mode =POSITION_SPEED ;                       //设置控制模式
+    if (config->ctrl_mode==MIT_CFG)
+    {
+        dm_motor_obj[idx].set_control_mode=MIT;
+    }
+    else if (config->ctrl_mode==POSITION_SPEED_CFG)
+    {
+        dm_motor_obj[idx].set_control_mode =POSITION_SPEED ;
+    }
+    else if (config->ctrl_mode==SPEED_CFG)
+    {
+        dm_motor_obj[idx].set_control_mode =SPEED;
+    }
+    else
+    {
+        dm_motor_obj[idx].set_control_mode=MIT;
+    }
     return &dm_motor_obj[idx++];
 }
 
@@ -245,10 +293,10 @@ dm_motor_object_t *dm_motor_register(motor_config_t *config, void *control)
   * @param  buf:  CAN数据帧
   * @retval
   */
-uint8_t *pbuf,*vbuf;
+static uint8_t *pbuf,*vbuf;
 static void pack_contol_para(dm_motor_object_t dm_motor_object,dm_motor_para_t para, uint8_t *buf)
 {
-    uint16_t p, v, kp, kd, t;
+    static uint16_t p, v, kp, kd, t;
 
     switch (dm_motor_object.set_control_mode) {
 
