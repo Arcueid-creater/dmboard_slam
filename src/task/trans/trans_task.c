@@ -35,7 +35,7 @@ TeamColor  team_color;
 
 /* -------------------------------- 线程间通讯话题相关 ------------------------------- */
 // 发布
-MCN_DECLARE(transmission_fdb);
+MCN_DECLARE(transmission_fdb_topic);
 static struct trans_fdb_msg trans_fdb_data;
 
 // 订阅
@@ -48,10 +48,12 @@ static struct chassis_cmd_msg chass_cmd;
 MCN_DECLARE(gimbal_cmd);
 static McnNode_t gimbal_cmd_node;
 static struct gimbal_cmd_msg gimbal_cmd;
-MCN_DECLARE(gimbal_fdb);
+MCN_DECLARE(gimbal_fdb_topic);
 static McnNode_t gimbal_fdb_node;
 static struct gimbal_fdb_msg gimbal_fdb;
-
+MCN_DECLARE(gimbal_ins_topic);
+static McnNode_t gimbal_ins_node;
+static struct dm_imu_t gim_ins;
 static void trans_pub_push(void);
 static void trans_sub_init(void);
 static void trans_sub_pull(void);
@@ -95,7 +97,7 @@ void trans_control(){
     }
 //        judge_color();
     Send_to_pc(rpy_tx_data);
-    // vTaskDelay(100);
+    vTaskDelay(100);
 
 /*--------------------------------------------------具体需要发送的数据---------------------------------*/
     /* 用于调试监测线程调度使用 */
@@ -117,10 +119,10 @@ void trans_control_task(){
 void Send_to_pc(RpyTypeDef data_r)
 {
     /*填充数据*/
-    pack_Rpy(&data_r, (gimbal_fdb.yaw_offset_angle - ins.yaw), ins.pitch-gimbal_fdb.pit_offset_angle, openfire,team_color);
+    pack_Rpy(&data_r, (gimbal_fdb.yaw_offset_angle - gim_ins.yaw), gim_ins.pitch-gimbal_fdb.pit_offset_angle ,openfire,team_color);
     Check_Rpy(&data_r);
 
-    CDC_Transmit_HS((uint8_t*)data_r.DATA,  sizeof(data_r.DATA));
+    CDC_Transmit_HS((uint8_t*)&data_r,  sizeof(data_r));
 
     if (gimbal_cmd.ctrl_mode==GIMBAL_AUTO&&auto_relative_angle_status==RELATIVE_ANGLE_TRANS)
     {
@@ -261,14 +263,15 @@ struct trans_fdb_msg* get_trans_fdb(void)
 /******************************************************消息订阅*************************************************************************/
 void trans_pub_push(){
     // data_content my_data = ;
-    mcn_publish(MCN_HUB(transmission_fdb), &trans_fdb_data);
+    mcn_publish(MCN_HUB(transmission_fdb_topic), &trans_fdb_data);
 }
 
 void trans_sub_init(){
     ins_topic_node = mcn_subscribe(MCN_HUB(ins_topic), NULL, NULL);
     chassis_cmd_node = mcn_subscribe(MCN_HUB(chassis_cmd), NULL, NULL);
     gimbal_cmd_node = mcn_subscribe(MCN_HUB(gimbal_cmd), NULL, NULL);
-    gimbal_fdb_node = mcn_subscribe(MCN_HUB(gimbal_fdb), NULL, NULL);
+    gimbal_fdb_node = mcn_subscribe(MCN_HUB(gimbal_fdb_topic), NULL, NULL);
+    gimbal_ins_node =mcn_subscribe(MCN_HUB(gimbal_ins_topic), NULL, NULL);
 }
 
 void trans_sub_pull(){
@@ -287,7 +290,10 @@ void trans_sub_pull(){
     }
     if (mcn_poll(gimbal_fdb_node))
     {
-        mcn_copy(MCN_HUB(gimbal_fdb), gimbal_fdb_node, &gimbal_fdb);
+        mcn_copy(MCN_HUB(gimbal_fdb_topic), gimbal_fdb_node, &gimbal_fdb);
     }
-
+    if (mcn_poll(gimbal_ins_node))
+    {
+        mcn_copy(MCN_HUB(gimbal_ins_topic), gimbal_ins_node, &gimbal_fdb);
+    }
 }

@@ -48,7 +48,7 @@
 
 /* 遥控器模式下的云台速度限制 */
 /* 云台pitch轴速度 */
-#define GIMBAL_RC_MOVE_RATIO_PIT 0.5f
+#define GIMBAL_RC_MOVE_RATIO_PIT 0.8f
 /* 云台yaw轴速度 */
 #define GIMBAL_RC_MOVE_RATIO_YAW 0.5f
 
@@ -156,11 +156,11 @@
 #define CHASSIS_MAX_V_MOTOR             16000
 // TODO: 参数待整定
 /* 跟随云台PID */
-#define CHASSIS_KP_V_FOLLOW             0.05
-#define CHASSIS_KI_V_FOLLOW             0
-#define CHASSIS_KD_V_FOLLOW             0
-#define CHASSIS_INTEGRAL_V_FOLLOW       300
-#define CHASSIS_MAX_V_FOLLOW            1500
+#define CHASSIS_KP_V_FOLLOW             15.0f
+#define CHASSIS_KI_V_FOLLOW             0.0f
+#define CHASSIS_KD_V_FOLLOW             0.01
+#define CHASSIS_INTEGRAL_V_FOLLOW       50.0f
+#define CHASSIS_MAX_V_FOLLOW            80
 
 /* ---------------------------------- 云台相关 ---------------------------------- */
 #define YAW_MOTOR_ID     0
@@ -227,15 +227,15 @@
 /* -------------------------------- 云台电机PID参数 ------------------------------- */
 /* 云台yaw轴电机PID参数 */
 /* imu速度环 */
-#define YAW_KP_V_IMU             0.5f
-#define YAW_KI_V_IMU             0
-#define YAW_KD_V_IMU             0.0001f
+#define YAW_KP_V_IMU             1.250f
+#define YAW_KI_V_IMU             0.1
+#define YAW_KD_V_IMU             0.001f
 #define YAW_INTEGRAL_V_IMU       4.0
 #define YAW_MAX_V_IMU            5.0
 /* imu角度环 */
-#define YAW_KP_A_IMU             3.0
+#define YAW_KP_A_IMU             8.0
 #define YAW_KI_A_IMU             0
-#define YAW_KD_A_IMU             0.0001
+#define YAW_KD_A_IMU             0.001
 #define YAW_INTEGRAL_A_IMU       0
 #define YAW_MAX_A_IMU            10
 /* auto速度环 */
@@ -253,13 +253,13 @@
 
 /* 云台PITCH轴电机PID参数 */
 /* imu速度环 */
-#define UP_PITCH_KP_V_IMU           0.7f
+#define UP_PITCH_KP_V_IMU           0.72f
 #define UP_PITCH_KI_V_IMU           0.32f
 #define UP_PITCH_KD_V_IMU           0.0001f
 #define UP_PITCH_INTEGRAL_V_IMU     3.0f
 #define UP_PITCH_MAX_V_IMU          7.0f
 /* imu角度环 */
-#define UP_PITCH_KP_A_IMU           10.0f
+#define UP_PITCH_KP_A_IMU           13.0f
 #define UP_PITCH_KI_A_IMU           0.0f
 #define UP_PITCH_KD_A_IMU           0.0001f
 #define UP_PITCH_INTEGRAL_A_IMU     0.0f

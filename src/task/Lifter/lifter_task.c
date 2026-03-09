@@ -479,7 +479,7 @@ static void (*motor_control[4])(unitree_motor_object_t *) = {
 /**/
 
 
-int shuipin=0;
+int shuipin=1;
 void SetRefState(LifterController_t *lifter,struct lifter_cmd_msg cmd)
 {
      FK_FootPosition(&lifter->mechanism,

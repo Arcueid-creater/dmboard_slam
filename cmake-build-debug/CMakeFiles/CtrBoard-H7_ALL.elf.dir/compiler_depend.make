@@ -3240,6 +3240,7 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/USB_DEVICE/App/usbd_cdc_if.c.obj: D:/Robomast
   D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/Middlewares/ST/STM32_USB_Device_Library/Core/Inc/usbd_ioreq.h \
   D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/USB_DEVICE/App/usbd_cdc_if.h \
   D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/USB_DEVICE/Target/usbd_conf.h \
+  D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/src/task/trans/trans_task.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/_ansi.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/_newlib_version.h \
   D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/arm-none-eabi/include/alloca.h \
@@ -7860,6 +7861,10 @@ D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/src/modules/BMI088/trans
 
 D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/USB_DEVICE/App/usbd_cdc_if.c:
 
+D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/src/task/rm_task.h:
+
+D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/src/task/trans/trans_task.h:
+
 D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/USB_DEVICE/Target/usbd_conf.c:
 
 D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/src/algorithm/Filter/filter32.h:
@@ -7921,10 +7926,6 @@ D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/src/modules/motor/UNITRE
 D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/src/modules/pwm/drv_PWM.c:
 
 D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/src/modules/referee/referee_system.c:
-
-D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/src/task/trans/trans_task.h:
-
-D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/src/task/rm_task.h:
 
 D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/src/task/gimbal/gimbal_task.h:
 

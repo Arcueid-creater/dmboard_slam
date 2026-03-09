@@ -43,7 +43,7 @@ static McnNode_t gimbal_ins_node;
 static struct dm_imu_t gim_ins;
 
 // 发布
-MCN_DECLARE(gimbal_fdb);
+MCN_DECLARE(gimbal_fdb_topic);
 struct gimbal_fdb_msg gimbal_fdb_data;
 
 static void gimbal_pub_push(void);
@@ -166,6 +166,8 @@ static float get_up_pitch_motor_angle(void)
 
 static void GimbalCtrl_StateHandler(void)
 {
+    gimbal_fdb_data.yaw_relative_angle = get_yaw_motor_angle();
+
     switch (gim_cmd.ctrl_mode)
     {
 
@@ -181,11 +183,11 @@ static void GimbalCtrl_StateHandler(void)
             gim_motor_ref[dowm_pitch_motor]=PI/2.0f;//下pitch抬起一半，不要全部收起
             gim_motor_ref[dowm_pitch_motor]=1.2f;
             gim_motor_ref[up_pitch_motor]=pitch_calc_motor_angle(0);
-            if (fabsf(gim_motor[dowm_pitch_motor]->measure.total_angle-1.2f)<0.02f)
+            if (fabsf(gim_motor[dowm_pitch_motor]->measure.total_angle-2.55f)<6.0f)
             {
                 gim_motor_ref[yaw_motor]=0.0f;//·
                 gim_motor_ref[up_pitch_motor]=pitch_calc_motor_angle(0);
-                if (fabs(gim_ins.pitch*DEGREE_2_RAD) <0.04f)//通过云台是否水平判断是否完成归中，然后再
+                if (fabs(gim_ins.pitch*DEGREE_2_RAD) <0.04f&&fabs(angle_normalize(gim_motor[yaw_motor]->measure.total_angle))<0.08f)//通过云台是否水平判断是否完成归中，然后再
                 {
                         // gim_motor[up_pitch_motor]->set_mode(gim_motor[up_pitch_motor], DM_CMD_MOTOR_MODE);
                         gimbal_fdb_data.back_mode = BACK_IS_OK;
@@ -215,13 +217,18 @@ static void GimbalCtrl_StateHandler(void)
             // dm_motor_enable_all();
             gim_motor_ref[yaw_motor]=gim_cmd.yaw*DEGREE_2_RAD;
             gim_motor_ref[up_pitch_motor]=pitch_calc_motor_angle(gim_cmd.pitch);
-
-            gimbal_fdb_data.yaw_relative_angle = angle_normalize(gim_motor[yaw_motor]->measure.total_angle);
+            gimbal_fdb_data.yaw_relative_angle=get_yaw_motor_angle();
+            // gimbal_fdb_data.yaw_relative_angle = angle_normalize(gim_motor[yaw_motor]->measure.total_angle);
             gimbal_fdb_data.yaw_offset_angle=gim_ins.yaw;
             gimbal_fdb_data.pit_offset_angle=gim_ins.pitch;
             break;
         case GIMBAL_AUTO:
-
+            gim_motor_ref[yaw_motor]=gim_cmd.yaw*DEGREE_2_RAD;
+            gim_motor_ref[up_pitch_motor]=pitch_calc_motor_angle(gim_cmd.pitch);
+            gimbal_fdb_data.yaw_relative_angle=get_yaw_motor_angle();
+            gimbal_fdb_data.pit_offset_angle=gim_ins.pitch;
+            gimbal_fdb_data.yaw_offset_angle=gim_ins.yaw;
+            gimbal_fdb_data.back_mode = BACK_STEP;
             break;
         case GIMBAL_NO_FOLLOW:
 
@@ -276,6 +283,7 @@ static void motor_enable()
 
 /* 1 号电机 */
 float target_speed1=1.0f;
+float yaw_get_angle=0;
 static dm_motor_para_t dm_yaw_control(dm_motor_measure_t measure)
 {
     static pid_obj_t *pid_angle;
@@ -288,23 +296,32 @@ static dm_motor_para_t dm_yaw_control(dm_motor_measure_t measure)
     {
         // TODO: 云台初始化模式加入斜坡算法，可以控制归中时间
         case GIMBAL_INIT:
+            // pid_speed = gim_controller[yaw_motor].pid_speed_imu;
             pid_speed = gim_controller[yaw_motor].pid_speed_imu;
             pid_angle = gim_controller[yaw_motor].pid_angle_imu;
-            get_speed = gim_motor[yaw_motor]->measure.speed_rads;
-            get_angle = gim_motor[yaw_motor]->measure.total_angle;
+            // get_speed = gim_motor[yaw_motor]->measure.speed_rads;
+            get_speed = gim_ins.gyro[2];
+            // pid_speed = gim_controller[yaw_motor].pid_speed_imu;
+            get_angle = angle_normalize(gim_motor[yaw_motor]->measure.total_angle);
+            yaw_get_angle=get_angle;
             send_data=0;
             break;
         case GIMBAL_GYRO:
             pid_speed = gim_controller[yaw_motor].pid_speed_imu;
             pid_angle = gim_controller[yaw_motor].pid_angle_imu;
-            get_speed = gim_motor[yaw_motor]->measure.speed_rads;
-            get_angle = gim_motor[yaw_motor]->measure.total_angle;
+            // get_speed = gim_motor[yaw_motor]->measure.speed_rads;
+            get_speed = gim_ins.gyro[2];
+            get_angle = (gim_ins.yaw_total_angle - gimbal_fdb_data.yaw_offset_angle_total)*DEGREE_2_RAD;
+
+            yaw_get_angle=get_angle;
             break;
         case GIMBAL_AUTO:
             pid_speed = gim_controller[yaw_motor].pid_speed_auto;
             pid_angle = gim_controller[yaw_motor].pid_angle_auto;
-            get_speed = gim_motor[yaw_motor]->measure.speed_rads;
-            get_angle = gim_motor[yaw_motor]->measure.total_angle;
+            // get_speed = gim_motor[yaw_motor]->measure.speed_rads;
+            get_speed = gim_ins.gyro[2];
+            get_angle = (gim_ins.yaw_total_angle - gimbal_fdb_data.yaw_offset_angle_total)*DEGREE_2_RAD;
+            yaw_get_angle=get_angle;
             break;
         default:
             break;
@@ -319,7 +336,7 @@ static dm_motor_para_t dm_yaw_control(dm_motor_measure_t measure)
     pid_out_angle = pid_calculate(pid_angle, get_angle, gim_motor_ref[yaw_motor]);
     // pid_out_angle = pid_calculate(pid_angle, get_angle, target_angle);
     send_data = pid_calculate(pid_speed, get_speed, pid_out_angle);
-    float t_ff=0.5f;
+    float t_ff=0.4f;
     send_data=send_data+t_ff;
     //云台yaw轴角度需要纠正
 
@@ -335,7 +352,7 @@ static dm_motor_para_t dm_yaw_control(dm_motor_measure_t measure)
         set.p =0;
         set.kp = 0;
         set.v = 0;
-        set.kd = 0.1f;
+        set.kd = 0.01f;
         set.t = send_data;
     }
     return set;
@@ -396,7 +413,7 @@ static dm_motor_para_t dm_dn_pitch_control(dm_motor_measure_t measure)
 #ifdef CLOSE_DM_MOTOR
     send_data=0;
 #endif
-    // send_data=0;
+    send_data=0;
     LIMIT_MIN_MAX(send_data, -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
     {
         set.p =0;
@@ -471,7 +488,7 @@ static dm_motor_para_t dm_up_control(dm_motor_measure_t measure)
         set.p =0;
         set.kp = 0;
         set.v = 0;
-        set.kd = 0.1f;
+        set.kd = 0.01f;
         set.t = send_data;
     }
     return set;
@@ -556,7 +573,7 @@ static void gimbal_pid_init()
 static void gimbal_pub_push(void)
 {
     // data_content my_data = ;
-    mcn_publish(MCN_HUB(gimbal_fdb), &gimbal_fdb_data);
+    mcn_publish(MCN_HUB(gimbal_fdb_topic), &gimbal_fdb_data);
 }
 
 /**

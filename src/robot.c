@@ -18,9 +18,9 @@ MCN_DEFINE(trans_fdb,sizeof(struct trans_fdb_msg));
 MCN_DEFINE(gimbal_cmd,sizeof(struct gimbal_cmd_msg));
 MCN_DEFINE(shoot_cmd,sizeof(struct shoot_cmd_msg));
 MCN_DEFINE(shoot_fdb_topic,sizeof(struct shoot_fdb_msg));
-MCN_DEFINE(gimbal_fdb,sizeof(struct gimbal_fdb_msg));
+MCN_DEFINE(gimbal_fdb_topic,sizeof(struct gimbal_fdb_msg));
 MCN_DEFINE(shoot_fdb,sizeof(struct shoot_fdb_msg));
-MCN_DEFINE(transmission_fdb,sizeof(struct trans_fdb_msg));
+MCN_DEFINE(transmission_fdb_topic,sizeof(struct trans_fdb_msg));
 MCN_DEFINE(lifter_cmd_topic,sizeof(struct lifter_cmd_msg));
 MCN_DEFINE(lifter_fdb_topic,sizeof(struct lifter_fdb_msg));
 
@@ -38,14 +38,14 @@ void robot_init()
 
     mcn_topic_init(); // 话题注册初始化
 
-    // chassis_task_init();
+    chassis_task_init();
     motor_task_init();
     cmd_task_init();
     gimbal_task_init();
-    trans_task_init();
+    // trans_task_init();
     shoot_task_init();
     ins_task_init();
-    // LifterInit();
+    LifterInit();
     OS_task_init(); // 创建基础任务
 
     // 初始化完成,开启中断
@@ -65,9 +65,9 @@ static void mcn_topic_init(void)
     mcn_advertise(MCN_HUB(trans_fdb), NULL);
     mcn_advertise(MCN_HUB(gimbal_cmd), NULL);
     mcn_advertise(MCN_HUB(shoot_cmd), NULL);
-    mcn_advertise(MCN_HUB(gimbal_fdb), NULL);
+    mcn_advertise(MCN_HUB(gimbal_fdb_topic), NULL);
     mcn_advertise(MCN_HUB(shoot_fdb_topic), NULL);
-    mcn_advertise(MCN_HUB(transmission_fdb), NULL);
+    mcn_advertise(MCN_HUB(transmission_fdb_topic), NULL);
     mcn_advertise(MCN_HUB(lifter_cmd_topic), NULL);
     mcn_advertise(MCN_HUB(lifter_fdb_topic), NULL);
     // mcn_advertise(MCN_HUB(lifter_fdb_topic), NULL);

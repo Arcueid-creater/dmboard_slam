@@ -18,8 +18,11 @@ MCN_DECLARE(shoot_cmd);
 static struct shoot_cmd_msg shoot_cmd_data;
 MCN_DECLARE(lifter_cmd_topic);
 MCN_DECLARE(lifter_fdb_topic);
-MCN_DECLARE(gimbal_fdb);
+MCN_DECLARE(gimbal_fdb_topic);
 MCN_DECLARE(shoot_fdb_topic);
+MCN_DECLARE(transmission_fdb_topic);
+static struct trans_fdb_msg trans_fdb_data;
+static McnNode_t trans_fdb_node;
 static struct gimbal_fdb_msg gimbal_fdb_data;
 static McnNode_t gimbal_fdb_node;
 static struct lifter_cmd_msg lifter_cmd;
@@ -110,16 +113,21 @@ static void GimbalState_Ctrl()
     {
         if (rc_now->sw2==RC_MI||rc_now->sw2==RC_DN)//因为直接一下拨打RC_DN，是自瞄模式，直接开启自瞄模式，默认需要进行归中操作
         {
-            if (rc_last->sw2==RC_UP||gimbal_cmd_data.last_mode==GIMBAL_RELAX)//如果没有完成归中操作，需要先进行归中
+            if (rc_last->sw2==RC_UP||gimbal_cmd_data.last_mode==GIMBAL_RELAX||gimbal_cmd_data.ctrl_mode==GIMBAL_RELAX)//如果没有完成归中操作，需要先进行归中
             {
                 gimbal_cmd_data.ctrl_mode=GIMBAL_INIT;
             }//转换成初始化的控制模式之后，完成归中会自动转换为KEEP模式
             //所以不需要写上一个模式时是初始化，该做什么处理
+
         }
 
-        if (rc_now->sw1==RC_DN&&gimbal_cmd_data.ctrl_mode==GIMBAL_GYRO)
+        if (rc_now->sw2==RC_DN&&gimbal_cmd_data.ctrl_mode==GIMBAL_GYRO)
         {
             gimbal_cmd_data.ctrl_mode=GIMBAL_AUTO;
+        }
+        if ((gimbal_cmd_data.ctrl_mode==GIMBAL_AUTO||gimbal_cmd_data.last_mode==GIMBAL_AUTO)&&rc_now->sw2==RC_MI)
+        {
+            gimbal_cmd_data.ctrl_mode=GIMBAL_INIT;
         }
         // if (rc_now->sw2==RC_DN)
         // {
@@ -135,7 +143,8 @@ static void GimbalState_Ctrl()
     {
 
         case GIMBAL_RELAX:
-
+            gimbal_cmd_data.pitch=0;
+            gimbal_cmd_data.yaw=0;
 
 
             break;
@@ -143,8 +152,10 @@ static void GimbalState_Ctrl()
         case GIMBAL_INIT:
 
             gimbal_cmd_data.gimbal_height=GIMBAL_MID_HEIGHT;
-
-
+            gimbal_cmd_data.pitch=0;
+            gimbal_cmd_data.yaw=0;
+            // gimbal_cmd_data.yaw=0;
+            // gimbal_cmd_data.pitch = 0;
             if (gimbal_fdb_data.back_mode==BACK_IS_OK)
             {
                 gimbal_cmd_data.ctrl_mode=GIMBAL_GYRO;
@@ -154,17 +165,19 @@ static void GimbalState_Ctrl()
         case GIMBAL_GYRO:
             // gimbal_cmd_data.yaw +=   (float)rc_now->ch3 * RC_RATIO * GIMBAL_RC_MOVE_RATIO_YAW + fx * KB_RATIO * GIMBAL_PC_MOVE_RATIO_YAW;
             // gimbal_cmd_data.pitch += (float)rc_now->ch4 * RC_RATIO * GIMBAL_RC_MOVE_RATIO_PIT- fy * KB_RATIO * GIMBAL_PC_MOVE_RATIO_PIT;
-            gimbal_cmd_data.yaw +=   (float)rc_now->ch3 * RC_RATIO * GIMBAL_RC_MOVE_RATIO_YAW ;
+            gimbal_cmd_data.yaw -=   (float)rc_now->ch3 * RC_RATIO * GIMBAL_RC_MOVE_RATIO_YAW ;
             gimbal_cmd_data.pitch -= (float)rc_now->ch4 * RC_RATIO * GIMBAL_RC_MOVE_RATIO_PIT;
             gyro_yaw_inherit =gimbal_cmd_data.yaw;
             gyro_pitch_inherit =gimbal_cmd_data.pitch;
             VAL_LIMIT(gimbal_cmd_data.pitch,-30,40);
-            VAL_LIMIT(gimbal_cmd_data.yaw,-30,40);
+            // VAL_LIMIT(gimbal_cmd_data.yaw,-30,40);
             mouse_accumulate_x=0;
             mouse_accumulate_y=0;
 
             break;
         case GIMBAL_AUTO:
+            gimbal_cmd_data.yaw =trans_fdb_data.yaw;
+            gimbal_cmd_data.pitch=trans_fdb_data.pitch;
 
         case GIMBAL_NO_FOLLOW:
 
@@ -172,6 +185,11 @@ static void GimbalState_Ctrl()
         case GIMBAL_RESET:
 
             break;
+    }
+    if (gimbal_cmd_data.ctrl_mode==GIMBAL_INIT||gimbal_cmd_data.ctrl_mode==GIMBAL_RELAX)
+    {
+        gimbal_cmd_data.pitch=0;
+        gimbal_cmd_data.yaw=0;
     }
 }
 int reverse_cnt=0;
@@ -210,7 +228,7 @@ static void ShootState_Ctrl()
             shoot_cmd_data.friction_on_flag=0;
         }
     }
-    if (shoot_fdb_data.trigger_motor_current>=9500||reverse_cnt!=0)/*M2006电机的堵转电流是10000*/
+    if (shoot_fdb_data.trigger_motor_current>=9800||reverse_cnt!=0)/*M2006电机的堵转电流是10000*/
     {
         shoot_cmd_data.ctrl_mode=SHOOT_REVERSE;
         if (reverse_cnt<450)
@@ -240,7 +258,11 @@ static void ShootState_Ctrl()
 }
 static void ChassisState_Ctrl()
 {
+
+
     chassis_cmd_data.last_mode=chassis_cmd_data.ctrl_mode;
+    chassis_cmd_data.offset_angle = gimbal_fdb_data.yaw_relative_angle;
+
 
     if (rc_now->sw2==RC_UP||rc_now->sw2==0)
     {
@@ -250,7 +272,7 @@ static void ChassisState_Ctrl()
     {
         if (rc_now->sw2==RC_MI)
         {
-            chassis_cmd_data.ctrl_mode=CHASSIS_NO_GIMBAL;//目前没有云台，
+            chassis_cmd_data.ctrl_mode=CHASSIS_FOLLOW_GIMBAL;//目前没有云台，
         }
         if (rc_now->sw1==RC_DN&&chassis_cmd_data.ctrl_mode==CHASSIS_NO_GIMBAL)//处于LIFTER_HEIGHT_KEEP模式，说明之前归中任务完成，可以直接转换成小陀螺模式
         {
@@ -301,6 +323,10 @@ static void ChassisState_Ctrl()
             {
                 chassis_cmd_data.ctrl_mode=CHASSIS_NO_GIMBAL;
             }
+            break;
+        case CHASSIS_FOLLOW_GIMBAL:
+            chassis_cmd_data.vx =  (float)rc_now->ch1 * CHASSIS_RC_MOVE_RATIO_X / RC_DBUS_MAX_VALUE * MAX_CHASSIS_VX_SPEED + km.vx * CHASSIS_PC_MOVE_RATIO_X;
+            chassis_cmd_data.vy =  (float)rc_now->ch2 * CHASSIS_RC_MOVE_RATIO_Y / RC_DBUS_MAX_VALUE * MAX_CHASSIS_VY_SPEED + km.vy * CHASSIS_PC_MOVE_RATIO_Y;
             break;
     }
 
@@ -385,7 +411,7 @@ static void LifterState_Ctrl()
             case LIFTER_HEIGHT_KEEP://这个状态机是控制的是一般情况下的底盘高度，如果进入修改高度的模式，KEEP模式下的高度会继承
                 //KEEP模式不需要做特别处理，这个函数结束时，会给lifter_cmd.height赋值
                 lifter_cmd.Kd=0.01f;
-                lifter_cmd.target_angle+=((float)rc_now->ch4)*0.0001f;
+                // lifter_cmd.target_angle+=((float)rc_now->ch4)*0.0001f;
                 VAL_LIMIT(lifter_cmd.target_angle,0.0f,80.0f);
                 break;
             case LIFTER_HEIGHT_INIT:
@@ -434,8 +460,9 @@ static void cmd_sub_init(void)
 {
     chassis_fdb_node = mcn_subscribe(MCN_HUB(chassis_fdb), NULL, NULL);
     lifter_fdb_node=mcn_subscribe(MCN_HUB(lifter_fdb_topic), NULL, NULL);
-    gimbal_fdb_node=mcn_subscribe(MCN_HUB(gimbal_fdb), NULL, NULL);
+    gimbal_fdb_node=mcn_subscribe(MCN_HUB(gimbal_fdb_topic), NULL, NULL);
     shoot_fdb_node=mcn_subscribe(MCN_HUB(shoot_fdb_topic), NULL, NULL);
+    trans_fdb_node=mcn_subscribe(MCN_HUB(transmission_fdb_topic), NULL, NULL);
 }
 
 
@@ -454,11 +481,15 @@ static void cmd_sub_pull(void)
     }
     if (mcn_poll(gimbal_fdb_node))
     {
-        mcn_copy(MCN_HUB(gimbal_fdb),gimbal_fdb_node,&gimbal_fdb_data);
+        mcn_copy(MCN_HUB(gimbal_fdb_topic),gimbal_fdb_node,&gimbal_fdb_data);
     }
     if (mcn_poll(shoot_fdb_node))
     {
         mcn_copy(MCN_HUB(shoot_fdb_topic),shoot_fdb_node,&shoot_fdb_data);
+    }
+    if (mcn_poll(trans_fdb_node))
+    {
+        mcn_copy(MCN_HUB(transmission_fdb_topic),trans_fdb_node,&trans_fdb_data);
     }
 }
 

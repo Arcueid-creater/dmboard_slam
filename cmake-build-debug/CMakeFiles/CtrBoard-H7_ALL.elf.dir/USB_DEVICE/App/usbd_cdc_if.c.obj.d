@@ -86,4 +86,5 @@ CMakeFiles/CtrBoard-H7_ALL.elf.dir/USB_DEVICE/App/usbd_cdc_if.c.obj: \
  D:\Robomaster\new_mecanum_revise\HNU_Embedded_Framework\Drivers\STM32H7xx_HAL_Driver\Inc/stm32h7xx_hal_pcd_ex.h \
  D:\Robomaster\new_mecanum_revise\HNU_Embedded_Framework\Middlewares\ST\STM32_USB_Device_Library\Core\Inc/usbd_core.h \
  D:\Robomaster\new_mecanum_revise\HNU_Embedded_Framework\Middlewares\ST\STM32_USB_Device_Library\Core\Inc/usbd_ioreq.h \
- D:\Robomaster\new_mecanum_revise\HNU_Embedded_Framework\Middlewares\ST\STM32_USB_Device_Library\Core\Inc/usbd_ctlreq.h
+ D:\Robomaster\new_mecanum_revise\HNU_Embedded_Framework\Middlewares\ST\STM32_USB_Device_Library\Core\Inc/usbd_ctlreq.h \
+ D:\Robomaster\new_mecanum_revise\HNU_Embedded_Framework\src\task\trans/trans_task.h

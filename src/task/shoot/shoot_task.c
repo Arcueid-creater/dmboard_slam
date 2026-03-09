@@ -110,7 +110,7 @@ void shoot_control(void)
     if (fire_cmd.friction_on_flag==1)
     {
         tx_data[0]=1;
-        friction_speed=500;
+        friction_speed=1000;
         tx_data[1]=(friction_speed>>8)& 0xff;
         tx_data[2]=friction_speed & 0xff;
     }
@@ -225,7 +225,7 @@ void shoot_control(void)
             shoot_fdb_data.trigger_status=SHOOT_ERR;
             break;
     }
-    /* ???¡¤?????????msg */
+
     if (count_shoot%2==0)
     {
         CAN_send(&hfdcan3,0x12,tx_data);
