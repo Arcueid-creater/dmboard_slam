@@ -129,6 +129,14 @@ static void GimbalState_Ctrl()
         {
             gimbal_cmd_data.ctrl_mode=GIMBAL_INIT;
         }
+        if (rc_now->sw2==RC_MI&&rc_now->sw1==RC_DN&&gimbal_cmd_data.ctrl_mode==GIMBAL_GYRO)
+        {
+            // gimbal_cmd_data.ctrl_mode=GIMBAL_DOGHOLE;
+        }
+        // else
+        // {
+        //     gimbal_cmd_data.ctrl_mode=GIMBAL_INIT;
+        // }
         // if (rc_now->sw2==RC_DN)
         // {
         //      gimbal_cmd_data.ctrl_mode=GIMBAL_RESET;
@@ -154,6 +162,7 @@ static void GimbalState_Ctrl()
             gimbal_cmd_data.gimbal_height=GIMBAL_MID_HEIGHT;
             gimbal_cmd_data.pitch=0;
             gimbal_cmd_data.yaw=0;
+            gimbal_cmd_data.pitch=0.0f;
             // gimbal_cmd_data.yaw=0;
             // gimbal_cmd_data.pitch = 0;
             if (gimbal_fdb_data.back_mode==BACK_IS_OK)
@@ -166,24 +175,34 @@ static void GimbalState_Ctrl()
             // gimbal_cmd_data.yaw +=   (float)rc_now->ch3 * RC_RATIO * GIMBAL_RC_MOVE_RATIO_YAW + fx * KB_RATIO * GIMBAL_PC_MOVE_RATIO_YAW;
             // gimbal_cmd_data.pitch += (float)rc_now->ch4 * RC_RATIO * GIMBAL_RC_MOVE_RATIO_PIT- fy * KB_RATIO * GIMBAL_PC_MOVE_RATIO_PIT;
             gimbal_cmd_data.yaw -=   (float)rc_now->ch3 * RC_RATIO * GIMBAL_RC_MOVE_RATIO_YAW ;
+            // gimbal_cmd_data.pitch=-10.0f;
             gimbal_cmd_data.pitch -= (float)rc_now->ch4 * RC_RATIO * GIMBAL_RC_MOVE_RATIO_PIT;
             gyro_yaw_inherit =gimbal_cmd_data.yaw;
+            // gimbal_cmd_data.pitch=-8.0f;
             gyro_pitch_inherit =gimbal_cmd_data.pitch;
-            VAL_LIMIT(gimbal_cmd_data.pitch,-30,40);
+            VAL_LIMIT(gimbal_cmd_data.pitch,-40,35);
             // VAL_LIMIT(gimbal_cmd_data.yaw,-30,40);
             mouse_accumulate_x=0;
             mouse_accumulate_y=0;
 
             break;
         case GIMBAL_AUTO:
-            gimbal_cmd_data.yaw =trans_fdb_data.yaw;
-            gimbal_cmd_data.pitch=trans_fdb_data.pitch;
-
+            // gimbal_cmd_data.yaw =trans_fdb_data.yaw_filtered-gimbal_fdb_data.yaw_relative_angle;
+            gimbal_cmd_data.yaw =trans_fdb_data.yaw_filtered;
+            gimbal_cmd_data.pitch=-trans_fdb_data.pitch_filtered;
+            // gimbal_cmd_data.pitch=-8.0f;
+            // gimbal_cmd_data.yaw =-trans_fdb_data.yaw;
+            // gimbal_cmd_data.pitch=-trans_fdb_data.pitch;
         case GIMBAL_NO_FOLLOW:
 
             break;
         case GIMBAL_RESET:
 
+            break;
+        case GIMBAL_DOGHOLE:
+            gimbal_cmd_data.down_pitch=0.0f;
+            gimbal_cmd_data.pitch=-11.0f;
+            gimbal_cmd_data.yaw -=   (float)rc_now->ch3 * RC_RATIO * GIMBAL_RC_MOVE_RATIO_YAW ;
             break;
     }
     if (gimbal_cmd_data.ctrl_mode==GIMBAL_INIT||gimbal_cmd_data.ctrl_mode==GIMBAL_RELAX)
@@ -193,6 +212,7 @@ static void GimbalState_Ctrl()
     }
 }
 int reverse_cnt=0;
+static int shoot_one_flag=0;
 static void ShootState_Ctrl()
 {
     shoot_cmd_data.last_mode=shoot_cmd_data.ctrl_mode;
@@ -208,7 +228,7 @@ static void ShootState_Ctrl()
     if (rc_now->sw2!=RC_UP&&rc_now->sw2!=0)
     {
 
-        if (rc_now->sw1==RC_MI&&rc_now->wheel>=300&&shoot_cmd_data.ctrl_mode!=SHOOT_REVERSE)
+        if (rc_now->sw1==RC_MI&&shoot_cmd_data.ctrl_mode!=SHOOT_REVERSE)
         {
             shoot_cmd_data.ctrl_mode=SHOOT_COUNTINUE;
 
@@ -223,12 +243,12 @@ static void ShootState_Ctrl()
         {
             shoot_cmd_data.friction_on_flag=1;
         }
-        if (rc_now->sw1==RC_UP)
+        if (rc_now->sw1==RC_UP||rc_now->sw1==RC_DN)
         {
             shoot_cmd_data.friction_on_flag=0;
         }
     }
-    if (shoot_fdb_data.trigger_motor_current>=9800||reverse_cnt!=0)/*M2006电机的堵转电流是10000*/
+    if (shoot_fdb_data.trigger_motor_current>=9500||reverse_cnt!=0)/*M2006电机的堵转电流是10000*/
     {
         shoot_cmd_data.ctrl_mode=SHOOT_REVERSE;
         if (reverse_cnt<450)
@@ -239,8 +259,17 @@ static void ShootState_Ctrl()
     switch (shoot_cmd_data.ctrl_mode)
     {
         case SHOOT_COUNTINUE:
-            shoot_cmd_data.shoot_freq=12;
-            shoot_cmd_data.trigger_status=TRIGGER_ING;
+            shoot_cmd_data.shoot_freq=10;
+
+            shoot_cmd_data.shoot_flag=1;
+            if (rc_now->wheel>=300)
+            {
+                shoot_cmd_data.trigger_status=TRIGGER_ING;
+            }
+            else
+            {
+                shoot_cmd_data.trigger_status=TRIGGER_OFF;
+            }
            if (shoot_fdb_data.trigger_status==SHOOT_REVERSE_ING)
            {
                shoot_cmd_data.ctrl_mode=SHOOT_REVERSE;
@@ -253,7 +282,21 @@ static void ShootState_Ctrl()
             //     shoot_cmd_data.ctrl_mode=SHOOT_COUNTINUE;
             // }
             break;
-
+        case SHOOT_ONE:
+            if (rc_now->wheel>=300)
+            {
+                shoot_cmd_data.trigger_status=TRIGGER_ON;
+                shoot_one_flag=0;
+            }
+            else
+            {
+                shoot_cmd_data.trigger_status=TRIGGER_OFF;
+            }
+            if (shoot_fdb_data.trigger_status==SHOOT_REVERSE_ING)
+            {
+                shoot_cmd_data.ctrl_mode=SHOOT_REVERSE;
+            }
+            break;
     }
 }
 static void ChassisState_Ctrl()
@@ -264,19 +307,19 @@ static void ChassisState_Ctrl()
     chassis_cmd_data.offset_angle = gimbal_fdb_data.yaw_relative_angle;
 
 
-    if (rc_now->sw2==RC_UP||rc_now->sw2==0)
+    if (rc_now->sw2==RC_UP)
     {
         chassis_cmd_data.ctrl_mode=CHASSIS_RELAX;
     }
     if (rc_now->sw2!=RC_UP&&rc_now->sw2!=0)//所有状态机需要在使能模式下才能转变
     {
-        if (rc_now->sw2==RC_MI)
+        if (rc_now->sw2==RC_MI||rc_now->sw2==RC_DN)
         {
             chassis_cmd_data.ctrl_mode=CHASSIS_FOLLOW_GIMBAL;//目前没有云台，
         }
-        if (rc_now->sw1==RC_DN&&chassis_cmd_data.ctrl_mode==CHASSIS_NO_GIMBAL)//处于LIFTER_HEIGHT_KEEP模式，说明之前归中任务完成，可以直接转换成小陀螺模式
+        if (rc_now->sw1==RC_DN&&chassis_cmd_data.ctrl_mode==CHASSIS_FOLLOW_GIMBAL)//处于LIFTER_HEIGHT_KEEP模式，说明之前归中任务完成，可以直接转换成小陀螺模式
         {
-            chassis_cmd_data.ctrl_mode=CHASSIS_SPIN;
+            // chassis_cmd_data.ctrl_mode=CHASSIS_SPIN;
         }
         if ((chassis_cmd_data.last_mode==CHASSIS_SPIN||chassis_cmd_data.ctrl_mode==CHASSIS_SPIN)&&rc_now->sw1!=RC_DN)//必须满足上一次时旋转模式，并且上一次的拨杆时在下方，
             //拨杆拨动，退出小陀螺模式，才能确保转换状态正常完成，并且需要进行一次归中
@@ -335,7 +378,7 @@ static void LifterState_Ctrl()
 {
     lifter_cmd.last_mode=lifter_cmd.ctrl_mode;
         ////TODO 现在是开小陀螺的时候打开升降底盘，按操作手需求，是否开启自瞄时自动小陀螺
-        if (rc_now->sw2==RC_UP||rc_now->sw2==0)
+        if (rc_now->sw2==RC_UP)
         {
             lifter_cmd.ctrl_mode=LIFTER_RELAX;
         }
@@ -347,16 +390,20 @@ static void LifterState_Ctrl()
                 {
                     lifter_cmd.ctrl_mode=LIFTER_HEIGHT_INIT;
                 }//转换成初始化的控制模式之后，完成归中会自动转换为KEEP模式
-                //所以不需要写上一个模式时是初始化，该做什么处理
+                //所以不需要写上一个模式时是初始化，该做什么处    理
             }
             if (rc_now->sw1==RC_DN&&(lifter_cmd.ctrl_mode==LIFTER_HEIGHT_KEEP||lifter_cmd.ctrl_mode==LIFTER_CLIMB))//处于LIFTER_HEIGHT_KEEP模式，说明之前归中任务完成，可以直接转换成小陀螺模式
             {
-                lifter_cmd.ctrl_mode=LIFTER_SPIN;
+                // lifter_cmd.ctrl_mode=LIFTER_SPIN;
             }
             if ((lifter_cmd.last_mode==LIFTER_SPIN||lifter_cmd.ctrl_mode==LIFTER_SPIN)&&rc_now->sw1!=RC_DN)//必须满足上一次时旋转模式，并且上一次的拨杆时在下方，
                 //拨杆拨动，退出小陀螺模式，才能确保转换状态正常完成，并且需要进行一次归中
             {
                 lifter_cmd.ctrl_mode=LIFTER_HEIGHT_INIT;
+            }
+            if (rc_now->sw2==RC_MI&&rc_now->sw1==RC_DN&&gimbal_cmd_data.ctrl_mode==GIMBAL_GYRO)
+            {
+                // lifter_cmd.ctrl_mode=LIFTER_DOGHOLE;
             }
             //如果按下拨杆时的模式压根不是小陀螺模式，则不需要处理
             //极限情况，从失能模式进入归中模式，同时开启小陀螺，因为不是KEEP模式，底盘不会进入小陀螺模式，只有等升降底盘完成归中才会开启小陀螺
@@ -412,11 +459,11 @@ static void LifterState_Ctrl()
                 //KEEP模式不需要做特别处理，这个函数结束时，会给lifter_cmd.height赋值
                 lifter_cmd.Kd=0.01f;
                 // lifter_cmd.target_angle+=((float)rc_now->ch4)*0.0001f;
-                VAL_LIMIT(lifter_cmd.target_angle,0.0f,80.0f);
+                VAL_LIMIT(lifter_cmd.target_angle,15.0f,80.0f);
                 break;
             case LIFTER_HEIGHT_INIT:
                 lifter_cmd.enable=1;
-                lifter_cmd.target_angle=40.0f;
+                lifter_cmd.target_angle=45.0f;
                 lifter_cmd.dTarget_angle=0.0f;
                 lifter_cmd.Kd=0.03f;
                 // height_ref.dheight=0.0f;
@@ -433,6 +480,13 @@ static void LifterState_Ctrl()
                 lifter_cmd.target_angle+=((float)rc_now->ch4)*0.0001f;
                 lifter_cmd.motor3angel=rc_now->wheel*0.121212f;
                 VAL_LIMIT(lifter_cmd.target_angle,0.0f,80.0f);
+                break;
+
+            case LIFTER_DOGHOLE:
+                lifter_cmd.enable=1;
+                lifter_cmd.target_angle=70.0f;
+                lifter_cmd.dTarget_angle=0.0f;
+                lifter_cmd.Kd=0.1f;
                 break;
         }
 

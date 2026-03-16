@@ -24,6 +24,7 @@ float last_pitch=0.0f;
 float lastoutput=2.0f;
 static float pitch_filtered = 0;
 float dm_obs[4];
+float yaw_filtered=0;
 #define DM_RATIO 1.0f
 #define DM_OUTPUT_LIMIT 7.0f
 /* ----------------------------------------------- 线程间通讯话题相关 ---------------------------------------------------- */
@@ -53,6 +54,7 @@ float angle_normalize(float angle_deg);
 float pitch_calc_motor_angle(float ref_angle);
 float get_pitch_form_motor();
 static void gimbal_pid_init();
+float yaw_filter_angle();
 //事先需要在正方向矫正0度
 
 static struct gimbal_controller_t{
@@ -167,7 +169,8 @@ static float get_up_pitch_motor_angle(void)
 static void GimbalCtrl_StateHandler(void)
 {
     gimbal_fdb_data.yaw_relative_angle = get_yaw_motor_angle();
-
+    yaw_filter_angle();
+    gimbal_fdb_data.pit_offset_angle=gim_ins.pitch;
     switch (gim_cmd.ctrl_mode)
     {
 
@@ -180,21 +183,22 @@ static void GimbalCtrl_StateHandler(void)
         {
             /* 云台初始化 / 归中过程：允许电机输出，使能 DM，调用内部状态机 */
             dm_motor_enable_all();
-            gim_motor_ref[dowm_pitch_motor]=PI/2.0f;//下pitch抬起一半，不要全部收起
-            gim_motor_ref[dowm_pitch_motor]=1.2f;
+            // gim_motor_ref[dowm_pitch_motor]=PI/2.0f;//下pitch抬起一半，不要全部收起
+            gim_motor_ref[dowm_pitch_motor]=1.0f;
             gim_motor_ref[up_pitch_motor]=pitch_calc_motor_angle(0);
-            if (fabsf(gim_motor[dowm_pitch_motor]->measure.total_angle-2.55f)<6.0f)
+            gim_motor_ref[yaw_motor]=0.0f;//·
+            if (fabsf(gim_motor[dowm_pitch_motor]->measure.total_angle-1.0)<6.0f)
             {
-                gim_motor_ref[yaw_motor]=0.0f;//·
+
                 gim_motor_ref[up_pitch_motor]=pitch_calc_motor_angle(0);
-                if (fabs(gim_ins.pitch*DEGREE_2_RAD) <0.04f&&fabs(angle_normalize(gim_motor[yaw_motor]->measure.total_angle))<0.08f)//通过云台是否水平判断是否完成归中，然后再
+                if (fabs(gim_ins.pitch*DEGREE_2_RAD) <0.8f&&fabs(angle_normalize(gim_motor[yaw_motor]->measure.total_angle))<0.1f)//通过云台是否水平判断是否完成归中，然后再
                 {
                         // gim_motor[up_pitch_motor]->set_mode(gim_motor[up_pitch_motor], DM_CMD_MOTOR_MODE);
                         gimbal_fdb_data.back_mode = BACK_IS_OK;
-                        gimbal_fdb_data.yaw_offset_angle_total=gim_ins.yaw_total_angle;
+                        gimbal_fdb_data.yaw_offset_angle_total=yaw_filtered;
                         gimbal_fdb_data.pit_offset_angle=gim_ins.pitch;
                         gimbal_fdb_data.yaw_offset_angle=gim_ins.yaw;
-
+                        gimbal_fdb_data.yaw_auto_offset_total_angle=yaw_filtered;
                 }
                 else
                 {
@@ -221,6 +225,7 @@ static void GimbalCtrl_StateHandler(void)
             // gimbal_fdb_data.yaw_relative_angle = angle_normalize(gim_motor[yaw_motor]->measure.total_angle);
             gimbal_fdb_data.yaw_offset_angle=gim_ins.yaw;
             gimbal_fdb_data.pit_offset_angle=gim_ins.pitch;
+            gimbal_fdb_data.yaw_auto_offset_total_angle=yaw_filtered;
             break;
         case GIMBAL_AUTO:
             gim_motor_ref[yaw_motor]=gim_cmd.yaw*DEGREE_2_RAD;
@@ -228,20 +233,26 @@ static void GimbalCtrl_StateHandler(void)
             gimbal_fdb_data.yaw_relative_angle=get_yaw_motor_angle();
             gimbal_fdb_data.pit_offset_angle=gim_ins.pitch;
             gimbal_fdb_data.yaw_offset_angle=gim_ins.yaw;
-            gimbal_fdb_data.back_mode = BACK_STEP;
+            // gimbal_fdb_data.back_mode = BACK_STEP;
+            gimbal_fdb_data.yaw_offset_angle_total=yaw_filtered;
             break;
         case GIMBAL_NO_FOLLOW:
 
             break;
         case GIMBAL_RESET:
             // gim_motor[up_pitch_motor]->set_mode(gim_motor[up_pitch_motor], DM_CMD_ZERO_POSITION);
-            // gim_motor[dowm_pitch_motor]->set_mode(gim_motor[dowm_pitch_motor], DM_CMD_ZERO_POSITION);
+            gim_motor[dowm_pitch_motor]->set_mode(gim_motor[dowm_pitch_motor], DM_CMD_ZERO_POSITION);
             // gim_motor[yaw_motor]->set_mode(gim_motor[yaw_motor], DM_CMD_ZERO_POSITION);
             // if ( gim_motor[up_pitch_motor]->ctrl_mode!=DM_CMD_ZERO_POSITION||gim_motor[dowm_pitch_motor]->ctrl_mode!=DM_CMD_ZERO_POSITION)
             // {
             //     // gim_motor[up_pitch_motor]->set_mode(gim_motor[up_pitch_motor], DM_CMD_ZERO_POSITION);
             //     gim_motor[dowm_pitch_motor]->set_mode(gim_motor[up_pitch_motor], DM_CMD_ZERO_POSITION);
             // }
+            break;
+        case GIMBAL_DOGHOLE:
+            gim_motor_ref[up_pitch_motor]=pitch_calc_motor_angle(gim_cmd.pitch);
+            gim_motor_ref[dowm_pitch_motor]=gim_cmd.down_pitch*DEGREE_2_RAD;
+            gim_motor_ref[yaw_motor]=gim_cmd.yaw*DEGREE_2_RAD;
             break;
         default:
         {
@@ -284,6 +295,7 @@ static void motor_enable()
 /* 1 号电机 */
 float target_speed1=1.0f;
 float yaw_get_angle=0;
+float yaw_get_angle_degree=0;
 static dm_motor_para_t dm_yaw_control(dm_motor_measure_t measure)
 {
     static pid_obj_t *pid_angle;
@@ -291,7 +303,7 @@ static dm_motor_para_t dm_yaw_control(dm_motor_measure_t measure)
     static float get_speed, get_angle;  // 闭环反馈量
     static float pid_out_angle;         // 角度环输出
     static float send_data;        // 最终发送给电调的数据
-
+    static float set_kd;
     switch (gim_cmd.ctrl_mode)
     {
         // TODO: 云台初始化模式加入斜坡算法，可以控制归中时间
@@ -299,31 +311,53 @@ static dm_motor_para_t dm_yaw_control(dm_motor_measure_t measure)
             // pid_speed = gim_controller[yaw_motor].pid_speed_imu;
             pid_speed = gim_controller[yaw_motor].pid_speed_imu;
             pid_angle = gim_controller[yaw_motor].pid_angle_imu;
-            // get_speed = gim_motor[yaw_motor]->measure.speed_rads;
-            get_speed = gim_ins.gyro[2];
+            get_speed = gim_motor[yaw_motor]->measure.speed_rads;
+            // get_speed = gim_ins.gyro[2];
             // pid_speed = gim_controller[yaw_motor].pid_speed_imu;
             get_angle = angle_normalize(gim_motor[yaw_motor]->measure.total_angle);
             yaw_get_angle=get_angle;
-            send_data=0;
+            set_kd=0.01f;
+            // send_data=0;
             break;
         case GIMBAL_GYRO:
             pid_speed = gim_controller[yaw_motor].pid_speed_imu;
             pid_angle = gim_controller[yaw_motor].pid_angle_imu;
             // get_speed = gim_motor[yaw_motor]->measure.speed_rads;
             get_speed = gim_ins.gyro[2];
-            get_angle = (gim_ins.yaw_total_angle - gimbal_fdb_data.yaw_offset_angle_total)*DEGREE_2_RAD;
+            get_angle = (yaw_filtered - gimbal_fdb_data.yaw_offset_angle_total)*DEGREE_2_RAD;
 
             yaw_get_angle=get_angle;
+            yaw_get_angle_degree=get_angle*RAD_2_DEGREE;
+            set_kd=0.01f;
             break;
         case GIMBAL_AUTO:
             pid_speed = gim_controller[yaw_motor].pid_speed_auto;
             pid_angle = gim_controller[yaw_motor].pid_angle_auto;
             // get_speed = gim_motor[yaw_motor]->measure.speed_rads;
-            get_speed = gim_ins.gyro[2];
-            get_angle = (gim_ins.yaw_total_angle - gimbal_fdb_data.yaw_offset_angle_total)*DEGREE_2_RAD;
+            get_speed = gim_motor[yaw_motor]->measure.speed_rads;
+            // get_speed = gim_ins.gyro[2];
+            // pid_speed = gim_controller[yaw_motor].pid_speed_imu;
+            get_angle = angle_normalize(gim_motor[yaw_motor]->measure.total_angle);
+            // get_speed = gim_motor[yaw_motor]->measure.speed_rads;
+            //
+            // get_angle = angle_normalize(gim_motor[yaw_motor]->measure.total_angle);
             yaw_get_angle=get_angle;
+            yaw_get_angle_degree=get_angle*RAD_2_DEGREE;
+            set_kd=0.1f;
+            break;
+        case GIMBAL_DOGHOLE:
+            pid_speed = gim_controller[yaw_motor].pid_speed_imu;
+            pid_angle = gim_controller[yaw_motor].pid_angle_imu;
+            // get_speed = gim_motor[yaw_motor]->measure.speed_rads;
+            get_speed = gim_ins.gyro[2];
+            get_angle = (yaw_filtered - gimbal_fdb_data.yaw_offset_angle_total)*DEGREE_2_RAD;
+
+            yaw_get_angle=get_angle;
+            yaw_get_angle_degree=get_angle*RAD_2_DEGREE;
+            set_kd=0.01f;
             break;
         default:
+
             break;
     }
     /* 切换模式需要清空控制器历史状态 */
@@ -336,7 +370,7 @@ static dm_motor_para_t dm_yaw_control(dm_motor_measure_t measure)
     pid_out_angle = pid_calculate(pid_angle, get_angle, gim_motor_ref[yaw_motor]);
     // pid_out_angle = pid_calculate(pid_angle, get_angle, target_angle);
     send_data = pid_calculate(pid_speed, get_speed, pid_out_angle);
-    float t_ff=0.4f;
+    float t_ff=0.0f;
     send_data=send_data+t_ff;
     //云台yaw轴角度需要纠正
 
@@ -352,7 +386,7 @@ static dm_motor_para_t dm_yaw_control(dm_motor_measure_t measure)
         set.p =0;
         set.kp = 0;
         set.v = 0;
-        set.kd = 0.01f;
+        set.kd = set_kd;
         set.t = send_data;
     }
     return set;
@@ -390,6 +424,14 @@ static dm_motor_para_t dm_dn_pitch_control(dm_motor_measure_t measure)
             get_speed = gim_motor[1]->measure.speed_rads;
             get_angle = gim_motor[1]->measure.total_angle;
             break;
+
+        case GIMBAL_DOGHOLE:
+            pid_speed = gim_controller[dowm_pitch_motor].pid_speed_imu;
+            pid_angle = gim_controller[dowm_pitch_motor].pid_angle_imu;
+            get_speed = gim_motor[1]->measure.speed_rads;
+            get_angle = gim_motor[1]->measure.total_angle;
+            break;
+
         default:
             break;
     }
@@ -413,7 +455,11 @@ static dm_motor_para_t dm_dn_pitch_control(dm_motor_measure_t measure)
 #ifdef CLOSE_DM_MOTOR
     send_data=0;
 #endif
-    send_data=0;
+    send_data=0.0f;
+    if(gim_cmd.ctrl_mode==GIMBAL_DOGHOLE)
+    {
+        // send_data=-0.8F;
+    }
     LIMIT_MIN_MAX(send_data, -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
     {
         set.p =0;
@@ -458,7 +504,18 @@ static dm_motor_para_t dm_up_control(dm_motor_measure_t measure)
             get_speed = gim_motor[up_pitch_motor]->measure.speed_rads;
             get_angle = gim_motor[up_pitch_motor]->measure.total_angle;
             break;
+
+        case GIMBAL_DOGHOLE:
+            pid_speed = gim_controller[up_pitch_motor].pid_speed_imu;
+            pid_angle = gim_controller[up_pitch_motor].pid_angle_imu;
+            get_speed = gim_motor[up_pitch_motor]->measure.speed_rads;
+            get_angle = gim_motor[up_pitch_motor]->measure.total_angle;
+            break;
         default:
+            pid_speed = gim_controller[up_pitch_motor].pid_speed_imu;
+            pid_angle = gim_controller[up_pitch_motor].pid_angle_imu;
+            get_speed = gim_motor[up_pitch_motor]->measure.speed_rads;
+            get_angle = gim_motor[up_pitch_motor]->measure.total_angle;
             break;
     }
     /* 切换模式需要清空控制器历史状态 */
@@ -471,7 +528,7 @@ static dm_motor_para_t dm_up_control(dm_motor_measure_t measure)
     pid_out_angle = pid_calculate(pid_angle, get_angle, gim_motor_ref[up_pitch_motor]);
     // pid_out_angle = pid_calculate(pid_angle, get_angle, target_angle3);
     send_data = pid_calculate(pid_speed, get_speed, pid_out_angle);
-    float t_ff=15.0f*arm_cos_f32(pitch_filtered*DEGREE_2_RAD)*0.005f;
+    float t_ff=30.0f*arm_cos_f32(pitch_filtered*DEGREE_2_RAD)*0.005f;
     // float t_ff=0.15f;
     send_data=send_data+t_ff;
     //云台yaw轴角度需要纠正
@@ -483,12 +540,16 @@ static dm_motor_para_t dm_up_control(dm_motor_measure_t measure)
     send_data=0;
 #endif
     // send_data=0;
+    if(gim_cmd.ctrl_mode==GIMBAL_DOGHOLE)
+    {
+        send_data=-0.50F;
+    }
     LIMIT_MIN_MAX(send_data, -DM_OUTPUT_LIMIT, DM_OUTPUT_LIMIT);
     {
         set.p =0;
         set.kp = 0;
         set.v = 0;
-        set.kd = 0.01f;
+        set.kd = 0.05f;
         set.t = send_data;
     }
     return set;
@@ -663,6 +724,12 @@ float pitch_calc_motor_angle(float ref_angle)
     }
 }
 
+
+float yaw_filter_angle()
+{
+    yaw_filtered=0.01f * yaw_filtered + 0.99f * gim_ins.yaw_total_angle;
+    return yaw_filtered;
+}
 /**
  *
  * @return 返回单纯由关节电机得到的pitch轴角度

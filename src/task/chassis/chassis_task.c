@@ -108,9 +108,11 @@ void chassis_control_task(void)
                 case CHASSIS_FOLLOW_GIMBAL:
                     follow_err = chassis_cmd.offset_angle;
                     if (follow_err < 0.01f && follow_err >= 0) {
-                        chassis_cmd.offset_angle = follow_err * follow_err / 5;
+                        // chassis_cmd.offset_angle = follow_err * follow_err / 5;
+                        chassis_cmd.offset_angle=0;
                     } else if (follow_err < 0 && follow_err > -0.01f) {
-                        chassis_cmd.offset_angle = -follow_err * follow_err / 5;
+                        // chassis_cmd.offset_angle = -follow_err * follow_err / 5;
+                        chassis_cmd.offset_angle=0;
                     }
 
                     vw = pid_calculate(follow_pid, chassis_cmd.offset_angle, SIDEWAYS_ANGLE);

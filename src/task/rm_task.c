@@ -46,9 +46,9 @@ static char cmd_dt_str[16], motor_dt_str[16], chassis_dt_str[16],
 
     osThreadDef(gimbaltask, gimbal_task_entry, osPriorityNormal, 0, 1024);
     gimbalTaskHandle = osThreadCreate(osThread(gimbaltask), NULL);
-    //
-    // osThreadDef(transtask, trans_task_entry, osPriorityNormal, 0, 1024);
-    // transTaskHandle = osThreadCreate(osThread(transtask), NULL);
+    // //
+    osThreadDef(transtask, trans_task_entry, osPriorityNormal, 0, 1024);
+    transTaskHandle = osThreadCreate(osThread(transtask), NULL);
 
     osThreadDef(shoottask, shoot_task_entry, osPriorityNormal, 0, 1024);
     shootTaskHandle = osThreadCreate(osThread(shoottask), NULL);

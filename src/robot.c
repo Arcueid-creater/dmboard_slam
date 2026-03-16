@@ -42,7 +42,7 @@ void robot_init()
     motor_task_init();
     cmd_task_init();
     gimbal_task_init();
-    // trans_task_init();
+    trans_task_init();
     shoot_task_init();
     ins_task_init();
     LifterInit();

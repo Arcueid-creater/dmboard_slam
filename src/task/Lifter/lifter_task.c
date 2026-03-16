@@ -13,8 +13,8 @@
 #define RF 1
 #define LB 2
 #define RB 3
-#define PITCH_OFFSET (-1.09982598)
-#define ROLL_OFFSET (-2.73424292)
+#define PITCH_OFFSET (-0.957)
+#define ROLL_OFFSET (-1.875)
 #define IMU_FILTER_ALPHA_PIT  0.20f
 #define IMU_FILTER_ALPHA_ROLL  0.1f
 #define IMU_FILTER_ALPHA_Z  0.4f
@@ -140,7 +140,7 @@ static void LifterCtrl_StateHander()
     {
         case LIFTER_RELAX: //失能时需要把底盘高度下降，达到最低点，才能彻底给电机失能
 
-            if (fabs(g_lifter_ctrl.state.h - g_lifter_ctrl.state.h_ref <= 0.05f))
+            if (fabs(g_lifter_ctrl.state.h - g_lifter_ctrl.state.h_ref <= 0.2f))
             {
                 lifter_fdb.back_mode = LIFTER_BACK_IS_OK;
                 Lifter_Disable();
@@ -518,7 +518,7 @@ void SetRefState(LifterController_t *lifter,struct lifter_cmd_msg cmd)
     }
      for (int i = 0; i < 4; i++)
      {
-         VAL_LIMIT(lifter->leg.ref_joint_angle[i],0.0f,80.0f);
+         VAL_LIMIT(lifter->leg.ref_joint_angle[i],15.0f,80.0f);
      }
      lifter->enable=cmd.enable;
     // lifter->state.h_ref=cmd.height;

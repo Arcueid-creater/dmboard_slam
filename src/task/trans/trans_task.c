@@ -57,7 +57,7 @@ static struct dm_imu_t gim_ins;
 static void trans_pub_push(void);
 static void trans_sub_init(void);
 static void trans_sub_pull(void);
-
+float yaw_obs=0;
 /*------------------------------自瞄相对角传参反馈--------------------------------------*/
 extern auto_relative_angle_status_e auto_relative_angle_status;
 
@@ -68,6 +68,8 @@ static float trans_dt;
 static float openfire;
 static float trans_start;
 static float heart_start;
+static float yaw_filtered=0;
+static float pitch_filtered=0;
 int8_t a;
 
 void trans_task_init(){
@@ -97,7 +99,8 @@ void trans_control(){
     }
 //        judge_color();
     Send_to_pc(rpy_tx_data);
-    vTaskDelay(100);
+    yaw_obs=gimbal_fdb.yaw_offset_angle - gim_ins.yaw;
+    // vTaskDelay(100);
 
 /*--------------------------------------------------具体需要发送的数据---------------------------------*/
     /* 用于调试监测线程调度使用 */
@@ -119,15 +122,19 @@ void trans_control_task(){
 void Send_to_pc(RpyTypeDef data_r)
 {
     /*填充数据*/
-    pack_Rpy(&data_r, (gimbal_fdb.yaw_offset_angle - gim_ins.yaw), gim_ins.pitch-gimbal_fdb.pit_offset_angle ,openfire,team_color);
+    // pack_Rpy(&data_r, (gimbal_fdb.yaw_offset_angle - gim_ins.yaw), gim_ins.pitch ,openfire,team_color);
+    pack_Rpy(&data_r, gimbal_fdb.yaw_relative_angle*RAD_2_DEGREE, gim_ins.pitch ,openfire,team_color);
+    yaw_obs=gimbal_fdb.yaw_offset_angle - gim_ins.yaw;
+    // pack_Rpy(&data_r, 0, gim_ins.pitch ,openfire,team_color);
+    // pack_Rpy(&data_r, 57.0f, 30.0f ,openfire,team_color);
     Check_Rpy(&data_r);
 
     CDC_Transmit_HS((uint8_t*)&data_r,  sizeof(data_r));
 
-    if (gimbal_cmd.ctrl_mode==GIMBAL_AUTO&&auto_relative_angle_status==RELATIVE_ANGLE_TRANS)
-    {
-        auto_relative_angle_status=RELATIVE_ANGLE_OK;
-    }
+    // if (gimbal_cmd.ctrl_mode==GIMBAL_AUTO&&auto_relative_angle_status==RELATIVE_ANGLE_TRANS)
+    // {
+    //     auto_relative_angle_status=RELATIVE_ANGLE_OK;
+    // }
 }
 
 //void judge_color()
@@ -224,13 +231,21 @@ static void usb_input(uint8_t* Buf, uint32_t *Len)
                     switch (rpy_rx_data.ID) {
                         case GIMBAL: {
                             if (rpy_rx_data.DATA[0]) { // 相对角度控制
-                                trans_fdb_data.yaw = -(*(int32_t *)&rpy_rx_data.DATA[1] / 1000.0);
+                                trans_fdb_data.yaw = (*(int32_t *)&rpy_rx_data.DATA[1] / 1000.0);
                                 trans_fdb_data.pitch = (*(int32_t *)&rpy_rx_data.DATA[5] / 1000.0);
                                 trans_fdb_data.roll = (*(int32_t *)&rpy_rx_data.DATA[9] / 1000.0);
+                                yaw_filtered=0.1f*trans_fdb_data.yaw+0.9f*trans_fdb_data.yaw;
+                                pitch_filtered=0.1f*trans_fdb_data.pitch+0.9f*trans_fdb_data.pitch;
+                                trans_fdb_data.yaw_filtered = yaw_filtered;
+                                trans_fdb_data.pitch_filtered = pitch_filtered;
                             } else { // 绝对角度控制
-                                trans_fdb_data.yaw = -(*(int32_t *)&rpy_rx_data.DATA[1] / 1000.0);
+                                trans_fdb_data.yaw = (*(int32_t *)&rpy_rx_data.DATA[1] / 1000.0);
                                 trans_fdb_data.pitch = (*(int32_t *)&rpy_rx_data.DATA[5] / 1000.0);
                                 trans_fdb_data.roll = (*(int32_t *)&rpy_rx_data.DATA[9] / 1000.0);
+                                yaw_filtered=0.1f*trans_fdb_data.yaw+0.9f*trans_fdb_data.yaw;
+                                pitch_filtered=0.1f*trans_fdb_data.pitch+0.9f*trans_fdb_data.pitch;
+                                trans_fdb_data.yaw_filtered = yaw_filtered;
+                                trans_fdb_data.pitch_filtered = pitch_filtered;
                             }
                         } break;
 
@@ -294,6 +309,6 @@ void trans_sub_pull(){
     }
     if (mcn_poll(gimbal_ins_node))
     {
-        mcn_copy(MCN_HUB(gimbal_ins_topic), gimbal_ins_node, &gimbal_fdb);
+        mcn_copy(MCN_HUB(gimbal_ins_topic), gimbal_ins_node, &gim_ins);
     }
 }

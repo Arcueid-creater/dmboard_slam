@@ -61,7 +61,7 @@ static float shoot_motor_ref[SHT_MOTOR_NUM]; // ????????????
 static int total_angle_flag=SHOOT_ANGLE_CONTINUE;
 /*????????*/
 static void shoot_motor_init();
-
+static int shoot_one_flag=1;
 static int16_t motor_control_trigger(dji_motor_measure_t measure);
 
 //??????????????
@@ -110,7 +110,7 @@ void shoot_control(void)
     if (fire_cmd.friction_on_flag==1)
     {
         tx_data[0]=1;
-        friction_speed=1000;
+        friction_speed=600;
         tx_data[1]=(friction_speed>>8)& 0xff;
         tx_data[2]=friction_speed & 0xff;
     }
@@ -125,7 +125,7 @@ void shoot_control(void)
     {
 
         case SHOOT_STOP:
-            shoot_motor_ref[TRIGGER_MOTOR] = 0;
+            shoot_motor_ref[TRIGGER_MOTOR] = sht_motor[TRIGGER_MOTOR]->measure.total_angle;
             total_angle_flag=0;
             shoot_fdb_data.trigger_status=SHOOT_WAITING;
 
@@ -133,50 +133,23 @@ void shoot_control(void)
 
         case SHOOT_ONE:
 
-            if(fire_cmd.trigger_status == TRIGGER_OFF)
-            {
-                shoot_fdb_data.trigger_status=SHOOT_WAITING;
-            }
-            if(total_angle_flag == SHOOT_ANGLE_CONTINUE)
-            {
-                shoot_motor_ref[TRIGGER_MOTOR]= sht_motor[TRIGGER_MOTOR]->measure.total_angle;
-                total_angle_flag=SHOOT_ANGLE_SINGLE;
-            }
-
             if (fire_cmd.trigger_status == TRIGGER_ON)
             {
-                sht_gap_time = dwt_get_time_ms() - sht_gap_start_time;
-                sht_gap_start_time = dwt_get_time_ms();
-                flag = 1;
-                if(sht_gap_time>=300)
+                //
+                if (shoot_one_flag == 1)
                 {
-                    flag = 2;
-                    //M3508??????? 19:1???????????51.43????????????????19??
-                    if(shoot_motor_ref[TRIGGER_MOTOR] - sht_controller[TRIGGER_MOTOR].pid_angle->Measure > TRIGGER_MOTOR_51_TO_ANGLE * 19 * 0.3)
-                    {
-                        flag = 3;
-                        shoot_motor_ref[TRIGGER_MOTOR]= shoot_motor_ref[TRIGGER_MOTOR]; //????????
-                    }
-                    else if(reverse_ref !=0 && fire_cmd.last_mode == SHOOT_REVERSE)
-                    {
-                        flag = 4;
-                        if(sht_controller[TRIGGER_MOTOR].pid_angle->Measure - reverse_ref > TRIGGER_MOTOR_51_TO_ANGLE * 19 * 0.4)
-                        {
-                            flag = 5;
-                            shoot_motor_ref[TRIGGER_MOTOR]= shoot_motor_ref[TRIGGER_MOTOR]; //????????δ???
-                        }
-                    }
-                    else
-                    {
-                        flag = 6;
-                        shoot_motor_ref[TRIGGER_MOTOR]= shoot_motor_ref[TRIGGER_MOTOR] + TRIGGER_MOTOR_51_TO_ANGLE * 19;
-
-                    }
-
+                    shoot_motor_ref[TRIGGER_MOTOR] = sht_motor[TRIGGER_MOTOR]->measure.total_angle;
+                    shoot_motor_ref[TRIGGER_MOTOR] = sht_motor[TRIGGER_MOTOR]->measure.total_angle + 360 / 9 * 2.5 * 36;
+                    shoot_one_flag = 0;
+                    // shoot_fdb_data.trigger_status=SHOOT_WAITING;
                 }
-                fire_cmd.trigger_status=TRIGGER_OFF;//???????
-                shoot_fdb_data.trigger_status=SHOOT_OK;
+                if ((fabs(sht_motor[TRIGGER_MOTOR]->measure.total_angle - shoot_motor_ref[TRIGGER_MOTOR]) < 5.0f)&&shoot_one_flag ==0)
+                {
+                    shoot_one_flag = 1;
+                    // shoot_fdb_data.trigger_status=SHOOT_OK;
+                }
             }
+
 
             break;
 
@@ -209,11 +182,15 @@ void shoot_control(void)
                 // tx_data[3]=(friction_speed >> 8) & 0xff;
                 // shoot_fdb_data.trigger_status= SHOOT_OK;
             }
-
+            if (fire_cmd.trigger_status == TRIGGER_OFF)
+            {
+                shoot_motor_ref[TRIGGER_MOTOR]=0;
+            }
             break;
 
         case SHOOT_REVERSE:
             shoot_motor_ref[TRIGGER_MOTOR]=-4000;
+            // shoot_motor_ref[TRIGGER_MOTOR]=4000;
 
             break;
 
@@ -295,9 +272,23 @@ static int16_t motor_control_trigger(dji_motor_measure_t measure)
         pid_clear(pid_angle);
         pid_clear(pid_speed);
     }
+    if (fire_cmd.ctrl_mode==SHOOT_ONE||fire_cmd.ctrl_mode==SHOOT_THREE) //非连发模式的时候，用双环pid控制拨弹电机
+    {
+        pid_out_angle = (int16_t) pid_calculate(pid_angle, get_angle, shoot_motor_ref[TRIGGER_MOTOR]);  // 编码器增长方向与imu相反
+        send_data = (int16_t) pid_calculate(pid_speed, get_speed, pid_out_angle);     // 电机转动正方向与imu相反
+    }
+    /*pid计算输出*/
+    else if(fire_cmd.ctrl_mode==SHOOT_COUNTINUE||fire_cmd.ctrl_mode==SHOOT_REVERSE)//自动模式的时候，只用速度环控制拨弹电机
+    {
+        send_data = (int16_t) pid_calculate(pid_speed, get_speed, shoot_motor_ref[TRIGGER_MOTOR] );
+    }
+    if (fire_cmd.ctrl_mode==SHOOT_STOP)
+    {
+        send_data=0;
+    }
+        return send_data;
 
-    send_data = (int16_t) pid_calculate(pid_speed, get_speed, shoot_motor_ref[TRIGGER_MOTOR] );
-    return send_data;
+
 }
 
 

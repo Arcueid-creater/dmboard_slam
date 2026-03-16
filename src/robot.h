@@ -57,6 +57,7 @@ struct gimbal_fdb_msg
     float yaw_offset_angle;    //云台初始 yaw 轴角度 （由imu得）
     float pit_offset_angle;    //云台初始 pit 轴角度 （由imu得）
     float yaw_relative_angle;  //云台相对于初始位置的yaw轴角度
+    float yaw_auto_offset_total_angle;
 };
 
 /**
@@ -71,6 +72,7 @@ typedef enum
     GIMBAL_NO_FOLLOW=4,
     GIMBAL_LIFTER=5,
     GIMBAL_RESET=6,
+    GIMBAL_DOGHOLE=7,
 } gimbal_mode_e;
 
 struct gimbal_cmd_msg
@@ -81,6 +83,7 @@ struct gimbal_cmd_msg
     gimbal_mode_e last_mode;  // 上一次云台控制模式
     float gimbal_height;
     float gimbal_angle;
+    float down_pitch;
 };
 
 typedef struct
@@ -152,6 +155,7 @@ typedef enum
     LIFTER_HEIGHT_INIT,//归中模式的底盘高度作为最适合的运动模式
     LIFTER_CLIMB,
     LIFTER_BACK_UP,
+    LIFTER_DOGHOLE,
 } lifter_mode_e ;
 
 struct lifter_cmd_msg
@@ -209,6 +213,7 @@ struct shoot_cmd_msg
     uint8_t mirror_enable;     // 倍镜使能开关
     bool friction_status;
     int friction_on_flag;
+    int shoot_flag;
 };
 
 /**
@@ -243,6 +248,8 @@ struct trans_fdb_msg
     float yaw;
     float pitch;
     float roll;
+    float yaw_filtered;
+    float pitch_filtered;
     uint8_t heartbeat;
 };
 
