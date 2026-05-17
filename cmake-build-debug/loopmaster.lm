@@ -1,0 +1,56 @@
+{
+  "elf_path": "CtrBoard-H7_ALL.elf",
+  "sample_rate": 100,
+  "frame_rate": 60,
+  "table_refresh_hz": 10,
+  "swd_freq_index": 1,
+  "connect_mode_index": 0,
+  "x_auto": true,
+  "y_auto": true,
+  "smooth_enabled": false,
+  "zoom_mode": "xy",
+  "theme": "vs_dark",
+  "monitored_variables": [],
+  "hidden_curves": [],
+  "time_window": 10,
+  "display_mode": "roll",
+  "table_col_widths": {
+    "0": 38,
+    "1": 160,
+    "2": 70,
+    "3": 120,
+    "4": 60,
+    "5": 38,
+    "6": 80,
+    "7": 44,
+    "8": 38,
+    "9": 56,
+    "10": 80,
+    "11": 44
+  },
+  "curve_colors": {},
+  "variable_aliases": {},
+  "variable_units": {},
+  "variable_expressions": {},
+  "expression_scope": [],
+  "folded_groups": [],
+  "tree_state": {
+    "expanded_folders": [],
+    "col_widths": {
+      "0": 260,
+      "1": 110,
+      "2": 200
+    }
+  },
+  "splitter_sizes": {
+    "main": [
+      447,
+      1050
+    ],
+    "scope": [
+      447,
+      40,
+      161
+    ]
+  }
+}

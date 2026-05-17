@@ -15,7 +15,7 @@
 #define yaw_motor 0
 #define dowm_pitch_motor 1
 #define up_pitch_motor 2
-// #define CLOSE_DM_MOTOR
+#define CLOSE_DM_MOTOR
 static float control_dt[4];
 static float control_start[4];
 static GimbalController_t g_gimbal_ctrl;
@@ -191,7 +191,7 @@ static void GimbalCtrl_StateHandler(void)
             {
 
                 gim_motor_ref[up_pitch_motor]=pitch_calc_motor_angle(0);
-                if (fabs(gim_ins.pitch*DEGREE_2_RAD) <0.8f&&fabs(angle_normalize(gim_motor[yaw_motor]->measure.total_angle))<0.1f)//通过云台是否水平判断是否完成归中，然后再
+                if (fabs(gim_ins.pitch*DEGREE_2_RAD) <6.0f&&fabs(angle_normalize(gim_motor[yaw_motor]->measure.total_angle))<6.0f)//通过云台是否水平判断是否完成归中，然后再
                 {
                         // gim_motor[up_pitch_motor]->set_mode(gim_motor[up_pitch_motor], DM_CMD_MOTOR_MODE);
                         gimbal_fdb_data.back_mode = BACK_IS_OK;
@@ -241,7 +241,7 @@ static void GimbalCtrl_StateHandler(void)
             break;
         case GIMBAL_RESET:
             // gim_motor[up_pitch_motor]->set_mode(gim_motor[up_pitch_motor], DM_CMD_ZERO_POSITION);
-            gim_motor[dowm_pitch_motor]->set_mode(gim_motor[dowm_pitch_motor], DM_CMD_ZERO_POSITION);
+            // gim_motor[dowm_pitch_motor]->set_mode(gim_motor[dowm_pitch_motor], DM_CMD_ZERO_POSITION);
             // gim_motor[yaw_motor]->set_mode(gim_motor[yaw_motor], DM_CMD_ZERO_POSITION);
             // if ( gim_motor[up_pitch_motor]->ctrl_mode!=DM_CMD_ZERO_POSITION||gim_motor[dowm_pitch_motor]->ctrl_mode!=DM_CMD_ZERO_POSITION)
             // {

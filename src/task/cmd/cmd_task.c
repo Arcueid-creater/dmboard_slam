@@ -37,7 +37,7 @@ static void LifterState_Ctrl();
 ramp_obj_t *lifter_period = NULL;
 /* --------------------------------------------------- 遥控器相关 ---------------------------------------------------- */
 #ifdef BSP_USING_RC_DBUS
-static rc_dbus_obj_t *rc_now, *rc_last;
+static sbus_data_t *rc_now, *rc_last;
 static float gyro_yaw_inherit;
 static float gyro_pitch_inherit;
 static float mouse_accumulate_x=0;
@@ -60,14 +60,17 @@ void cmd_task_init(void)
 {
     lifter_period=ramp_register(0,LIFTER_PERIOD);
     cmd_sub_init();
-    rc_now = dbus_rc_init();//rc_now接收的是rc_dbus_obj[2]数组的首地址，rc_last接收的是last的地址
+    rc_now = sbus_rc_init();//rc_now接收的是rc_dbus_obj[2]数组的首地址，rc_last接收的是last的地址
     rc_last = (rc_now + 1);   // rc_obj[0]:当前数据NOW,[1]:上一次的数据LAST
     // /* 鼠标一阶滤波初始化*/
     // First_Order_Filter_Init(&mouse_x_lpf,0.014f,0.1f);
     // First_Order_Filter_Init(&mouse_y_lpf,0.014f,0.1f);
     rc_now->sw1 = RC_UP;
     rc_now->sw2 = RC_UP;
+    rc_now->sw3 = RC_UP;
+    rc_now->sw4 = RC_UP;
 }
+
 
 void cmd_control_task(void)
 {
@@ -262,7 +265,7 @@ static void ShootState_Ctrl()
             shoot_cmd_data.shoot_freq=10;
 
             shoot_cmd_data.shoot_flag=1;
-            if (rc_now->wheel>=300)
+            if (rc_now->ch6>=300)
             {
                 shoot_cmd_data.trigger_status=TRIGGER_ING;
             }
@@ -283,7 +286,7 @@ static void ShootState_Ctrl()
             // }
             break;
         case SHOOT_ONE:
-            if (rc_now->wheel>=300)
+            if (rc_now->ch6>=300)
             {
                 shoot_cmd_data.trigger_status=TRIGGER_ON;
                 shoot_one_flag=0;
@@ -315,9 +318,9 @@ static void ChassisState_Ctrl()
     {
         if (rc_now->sw2==RC_MI||rc_now->sw2==RC_DN)
         {
-            chassis_cmd_data.ctrl_mode=CHASSIS_FOLLOW_GIMBAL;//目前没有云台，
+            chassis_cmd_data.ctrl_mode=CHASSIS_NO_GIMBAL;//目前没有云台，
         }
-        if (rc_now->sw1==RC_DN&&chassis_cmd_data.ctrl_mode==CHASSIS_FOLLOW_GIMBAL)//处于LIFTER_HEIGHT_KEEP模式，说明之前归中任务完成，可以直接转换成小陀螺模式
+        if (rc_now->sw1==RC_DN&&chassis_cmd_data.ctrl_mode==CHASSIS_NO_GIMBAL)//处于LIFTER_HEIGHT_KEEP模式，说明之前归中任务完成，可以直接转换成小陀螺模式
         {
             // chassis_cmd_data.ctrl_mode=CHASSIS_SPIN;
         }
@@ -338,15 +341,15 @@ static void ChassisState_Ctrl()
             break;
 
         case CHASSIS_NO_GIMBAL:
-            chassis_cmd_data.vx =  (float)rc_now->ch1 * CHASSIS_RC_MOVE_RATIO_X / RC_DBUS_MAX_VALUE * MAX_CHASSIS_VX_SPEED + km.vx * CHASSIS_PC_MOVE_RATIO_X;
-            chassis_cmd_data.vy =  (float)rc_now->ch2 * CHASSIS_RC_MOVE_RATIO_Y / RC_DBUS_MAX_VALUE * MAX_CHASSIS_VY_SPEED + km.vy * CHASSIS_PC_MOVE_RATIO_Y;
-            chassis_cmd_data.vw =  (float)rc_now->ch3 * CHASSIS_RC_MOVE_RATIO_R / RC_DBUS_MAX_VALUE * MAX_CHASSIS_VR_SPEED + (float)rc_now->mouse.x * CHASSIS_PC_MOVE_RATIO_R;
+            chassis_cmd_data.vx =  (float)rc_now->ch1 * CHASSIS_RC_MOVE_RATIO_X / RC_MAX_VALUE * MAX_CHASSIS_VX_SPEED ;
+            chassis_cmd_data.vy =  (float)rc_now->ch2 * CHASSIS_RC_MOVE_RATIO_Y / RC_MAX_VALUE * MAX_CHASSIS_VY_SPEED ;
+            chassis_cmd_data.vw =  (float)rc_now->ch3 * CHASSIS_RC_MOVE_RATIO_R / RC_MAX_VALUE * MAX_CHASSIS_VR_SPEED ;
 
             break;
         case CHASSIS_SPIN:
             chassis_cmd_data.vw=2;// * msg_cmd->robot_status.chassis_power_limit/55;/*!小陀螺转速，随着功率限制提升加快转速*/
-            chassis_cmd_data.vx =  (float)rc_now->ch1 * CHASSIS_RC_MOVE_RATIO_X / RC_DBUS_MAX_VALUE * MAX_CHASSIS_VX_SPEED + km.vx * CHASSIS_PC_MOVE_RATIO_X;
-            chassis_cmd_data.vy =  (float)rc_now->ch2 * CHASSIS_RC_MOVE_RATIO_Y / RC_DBUS_MAX_VALUE * MAX_CHASSIS_VY_SPEED + km.vy * CHASSIS_PC_MOVE_RATIO_Y;
+            chassis_cmd_data.vx =  (float)rc_now->ch1 * CHASSIS_RC_MOVE_RATIO_X / RC_MAX_VALUE * MAX_CHASSIS_VX_SPEED;
+            chassis_cmd_data.vy =  (float)rc_now->ch2 * CHASSIS_RC_MOVE_RATIO_Y / RC_MAX_VALUE * MAX_CHASSIS_VY_SPEED;
                 if(chassis_fdb.vw_ch < chassis_cmd_data.vw*0.85f) //当小陀螺被堵住时，自动退出小陀螺模式
                 {
                     spin_cnt++;
@@ -368,8 +371,8 @@ static void ChassisState_Ctrl()
             }
             break;
         case CHASSIS_FOLLOW_GIMBAL:
-            chassis_cmd_data.vx =  (float)rc_now->ch1 * CHASSIS_RC_MOVE_RATIO_X / RC_DBUS_MAX_VALUE * MAX_CHASSIS_VX_SPEED + km.vx * CHASSIS_PC_MOVE_RATIO_X;
-            chassis_cmd_data.vy =  (float)rc_now->ch2 * CHASSIS_RC_MOVE_RATIO_Y / RC_DBUS_MAX_VALUE * MAX_CHASSIS_VY_SPEED + km.vy * CHASSIS_PC_MOVE_RATIO_Y;
+            chassis_cmd_data.vx =  (float)rc_now->ch1 * CHASSIS_RC_MOVE_RATIO_X / RC_MAX_VALUE * MAX_CHASSIS_VX_SPEED;
+            chassis_cmd_data.vy =  (float)rc_now->ch2 * CHASSIS_RC_MOVE_RATIO_Y / RC_MAX_VALUE * MAX_CHASSIS_VY_SPEED;
             break;
     }
 
@@ -458,8 +461,8 @@ static void LifterState_Ctrl()
             case LIFTER_HEIGHT_KEEP://这个状态机是控制的是一般情况下的底盘高度，如果进入修改高度的模式，KEEP模式下的高度会继承
                 //KEEP模式不需要做特别处理，这个函数结束时，会给lifter_cmd.height赋值
                 lifter_cmd.Kd=0.01f;
-                // lifter_cmd.target_angle+=((float)rc_now->ch4)*0.0001f;
-                VAL_LIMIT(lifter_cmd.target_angle,15.0f,80.0f);
+                lifter_cmd.target_angle+=((float)rc_now->ch4)*0.0001f;
+                VAL_LIMIT(lifter_cmd.target_angle,15.0f,85.0f);
                 break;
             case LIFTER_HEIGHT_INIT:
                 lifter_cmd.enable=1;
@@ -478,7 +481,7 @@ static void LifterState_Ctrl()
                 case LIFTER_BACK_UP:
                 lifter_cmd.Kd=0.01f;
                 lifter_cmd.target_angle+=((float)rc_now->ch4)*0.0001f;
-                lifter_cmd.motor3angel=rc_now->wheel*0.121212f;
+                lifter_cmd.motor3angel=rc_now->ch6*0.121212f;
                 VAL_LIMIT(lifter_cmd.target_angle,0.0f,80.0f);
                 break;
 

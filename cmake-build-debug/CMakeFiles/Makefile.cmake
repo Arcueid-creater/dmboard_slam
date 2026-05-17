@@ -7,7 +7,7 @@ set(CMAKE_DEPENDS_GENERATOR "MinGW Makefiles")
 # The top level Makefile was generated from the following files:
 set(CMAKE_MAKEFILE_DEPENDS
   "CMakeCache.txt"
-  "D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/CMakeLists.txt"
+  "D:/Robomaster/new_mecanum_revise_fusi/HNU_Embedded_Framework/CMakeLists.txt"
   "CMakeFiles/3.31.6/CMakeASMCompiler.cmake"
   "CMakeFiles/3.31.6/CMakeCCompiler.cmake"
   "CMakeFiles/3.31.6/CMakeCXXCompiler.cmake"

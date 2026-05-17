@@ -36,6 +36,7 @@
 #define CHASSIS                 0x10        /* 速度方式控制 */
 #define CHASSIS_ODOM            0x11        /* 里程计方式控制 */
 #define CHASSIS_CTRL            0x12        /* 角/线速度方式控制 */
+#define POSE_CTRL               0x15        /* 姿态系统数据 */
 #define CHASSIS_IMU             0x13        /* 底盘imu数据 */
 #define GIMBAL                  0x20        /* 欧拉角rpy方式控制 */
 #define GAME_STATUS             0x30        /* 比赛类型数据*/
@@ -174,7 +175,7 @@ void transmission_task_entry(void* argument);
 /**
   * @brief 拆分并填充rpy欧拉角数据
   */
-void pack_Rpy(RpyTypeDef *frame, float yaw, float pitch,float roll,int team_color);
+void pack_Rpy(RpyTypeDef *frame, float yaw, float pitch, float roll);
 
 /**
   * @brief 和校验，附加校验

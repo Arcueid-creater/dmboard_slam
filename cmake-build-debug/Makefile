@@ -56,10 +56,10 @@ RM = "D:\clion\CLion 2025.1.2\bin\cmake\win\x64\bin\cmake.exe" -E rm -f
 EQUALS = =
 
 # The top-level source directory on which CMake was run.
-CMAKE_SOURCE_DIR = D:\Robomaster\new_mecanum_revise\HNU_Embedded_Framework
+CMAKE_SOURCE_DIR = D:\Robomaster\new_mecanum_revise_fusi\HNU_Embedded_Framework
 
 # The top-level build directory on which CMake was run.
-CMAKE_BINARY_DIR = D:\Robomaster\new_mecanum_revise\HNU_Embedded_Framework\cmake-build-debug
+CMAKE_BINARY_DIR = D:\Robomaster\new_mecanum_revise_fusi\HNU_Embedded_Framework\cmake-build-debug
 
 #=============================================================================
 # Targets provided globally by CMake.
@@ -86,9 +86,9 @@ rebuild_cache/fast: rebuild_cache
 
 # The main all target
 all: cmake_check_build_system
-	$(CMAKE_COMMAND) -E cmake_progress_start D:\Robomaster\new_mecanum_revise\HNU_Embedded_Framework\cmake-build-debug\CMakeFiles D:\Robomaster\new_mecanum_revise\HNU_Embedded_Framework\cmake-build-debug\\CMakeFiles\progress.marks
+	$(CMAKE_COMMAND) -E cmake_progress_start D:\Robomaster\new_mecanum_revise_fusi\HNU_Embedded_Framework\cmake-build-debug\CMakeFiles D:\Robomaster\new_mecanum_revise_fusi\HNU_Embedded_Framework\cmake-build-debug\\CMakeFiles\progress.marks
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\Makefile2 all
-	$(CMAKE_COMMAND) -E cmake_progress_start D:\Robomaster\new_mecanum_revise\HNU_Embedded_Framework\cmake-build-debug\CMakeFiles 0
+	$(CMAKE_COMMAND) -E cmake_progress_start D:\Robomaster\new_mecanum_revise_fusi\HNU_Embedded_Framework\cmake-build-debug\CMakeFiles 0
 .PHONY : all
 
 # The main clean target
@@ -2208,53 +2208,29 @@ src/modules/pwm/drv_PWM.c.s:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles\CtrBoard-H7_ALL.elf.dir\build.make CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/pwm/drv_PWM.c.s
 .PHONY : src/modules/pwm/drv_PWM.c.s
 
-src/modules/rc/Dbus/rc_dbus.obj: src/modules/rc/Dbus/rc_dbus.c.obj
-.PHONY : src/modules/rc/Dbus/rc_dbus.obj
+src/modules/rc/Sbus/rc_sbus.obj: src/modules/rc/Sbus/rc_sbus.c.obj
+.PHONY : src/modules/rc/Sbus/rc_sbus.obj
 
 # target to build an object file
-src/modules/rc/Dbus/rc_dbus.c.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\CtrBoard-H7_ALL.elf.dir\build.make CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/rc/Dbus/rc_dbus.c.obj
-.PHONY : src/modules/rc/Dbus/rc_dbus.c.obj
+src/modules/rc/Sbus/rc_sbus.c.obj:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\CtrBoard-H7_ALL.elf.dir\build.make CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/rc/Sbus/rc_sbus.c.obj
+.PHONY : src/modules/rc/Sbus/rc_sbus.c.obj
 
-src/modules/rc/Dbus/rc_dbus.i: src/modules/rc/Dbus/rc_dbus.c.i
-.PHONY : src/modules/rc/Dbus/rc_dbus.i
-
-# target to preprocess a source file
-src/modules/rc/Dbus/rc_dbus.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\CtrBoard-H7_ALL.elf.dir\build.make CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/rc/Dbus/rc_dbus.c.i
-.PHONY : src/modules/rc/Dbus/rc_dbus.c.i
-
-src/modules/rc/Dbus/rc_dbus.s: src/modules/rc/Dbus/rc_dbus.c.s
-.PHONY : src/modules/rc/Dbus/rc_dbus.s
-
-# target to generate assembly for a file
-src/modules/rc/Dbus/rc_dbus.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\CtrBoard-H7_ALL.elf.dir\build.make CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/rc/Dbus/rc_dbus.c.s
-.PHONY : src/modules/rc/Dbus/rc_dbus.c.s
-
-src/modules/rc/Keyboard/keyboard.obj: src/modules/rc/Keyboard/keyboard.c.obj
-.PHONY : src/modules/rc/Keyboard/keyboard.obj
-
-# target to build an object file
-src/modules/rc/Keyboard/keyboard.c.obj:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\CtrBoard-H7_ALL.elf.dir\build.make CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/rc/Keyboard/keyboard.c.obj
-.PHONY : src/modules/rc/Keyboard/keyboard.c.obj
-
-src/modules/rc/Keyboard/keyboard.i: src/modules/rc/Keyboard/keyboard.c.i
-.PHONY : src/modules/rc/Keyboard/keyboard.i
+src/modules/rc/Sbus/rc_sbus.i: src/modules/rc/Sbus/rc_sbus.c.i
+.PHONY : src/modules/rc/Sbus/rc_sbus.i
 
 # target to preprocess a source file
-src/modules/rc/Keyboard/keyboard.c.i:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\CtrBoard-H7_ALL.elf.dir\build.make CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/rc/Keyboard/keyboard.c.i
-.PHONY : src/modules/rc/Keyboard/keyboard.c.i
+src/modules/rc/Sbus/rc_sbus.c.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\CtrBoard-H7_ALL.elf.dir\build.make CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/rc/Sbus/rc_sbus.c.i
+.PHONY : src/modules/rc/Sbus/rc_sbus.c.i
 
-src/modules/rc/Keyboard/keyboard.s: src/modules/rc/Keyboard/keyboard.c.s
-.PHONY : src/modules/rc/Keyboard/keyboard.s
+src/modules/rc/Sbus/rc_sbus.s: src/modules/rc/Sbus/rc_sbus.c.s
+.PHONY : src/modules/rc/Sbus/rc_sbus.s
 
 # target to generate assembly for a file
-src/modules/rc/Keyboard/keyboard.c.s:
-	$(MAKE) $(MAKESILENT) -f CMakeFiles\CtrBoard-H7_ALL.elf.dir\build.make CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/rc/Keyboard/keyboard.c.s
-.PHONY : src/modules/rc/Keyboard/keyboard.c.s
+src/modules/rc/Sbus/rc_sbus.c.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles\CtrBoard-H7_ALL.elf.dir\build.make CMakeFiles/CtrBoard-H7_ALL.elf.dir/src/modules/rc/Sbus/rc_sbus.c.s
+.PHONY : src/modules/rc/Sbus/rc_sbus.c.s
 
 src/modules/referee/referee_system.obj: src/modules/referee/referee_system.c.obj
 .PHONY : src/modules/referee/referee_system.obj
@@ -2837,12 +2813,9 @@ help:
 	@echo ... src/modules/pwm/drv_PWM.obj
 	@echo ... src/modules/pwm/drv_PWM.i
 	@echo ... src/modules/pwm/drv_PWM.s
-	@echo ... src/modules/rc/Dbus/rc_dbus.obj
-	@echo ... src/modules/rc/Dbus/rc_dbus.i
-	@echo ... src/modules/rc/Dbus/rc_dbus.s
-	@echo ... src/modules/rc/Keyboard/keyboard.obj
-	@echo ... src/modules/rc/Keyboard/keyboard.i
-	@echo ... src/modules/rc/Keyboard/keyboard.s
+	@echo ... src/modules/rc/Sbus/rc_sbus.obj
+	@echo ... src/modules/rc/Sbus/rc_sbus.i
+	@echo ... src/modules/rc/Sbus/rc_sbus.s
 	@echo ... src/modules/referee/referee_system.obj
 	@echo ... src/modules/referee/referee_system.i
 	@echo ... src/modules/referee/referee_system.s

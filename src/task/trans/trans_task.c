@@ -10,6 +10,8 @@
 
 /*------------------------------传输数据相关 --------------------------------- */
 
+extern struct referee_fdb_msg referee_fdb;
+
 // 接收数据回调函数
 static uint8_t frame_buffer[sizeof(RpyTypeDef)];
 static uint32_t frame_index = 0;
@@ -65,7 +67,6 @@ uint8_t *r_buffer_point; //用于清除环形缓冲区buffer的指针
 
 /* --------------------------------- 通讯线程入口 --------------------------------- */
 static float trans_dt;
-static float openfire;
 static float trans_start;
 static float heart_start;
 static float yaw_filtered=0;
@@ -121,20 +122,73 @@ void trans_control_task(){
 
 void Send_to_pc(RpyTypeDef data_r)
 {
-    /*填充数据*/
-    // pack_Rpy(&data_r, (gimbal_fdb.yaw_offset_angle - gim_ins.yaw), gim_ins.pitch ,openfire,team_color);
-    pack_Rpy(&data_r, gimbal_fdb.yaw_relative_angle*RAD_2_DEGREE, gim_ins.pitch ,openfire,team_color);
-    yaw_obs=gimbal_fdb.yaw_offset_angle - gim_ins.yaw;
-    // pack_Rpy(&data_r, 0, gim_ins.pitch ,openfire,team_color);
-    // pack_Rpy(&data_r, 57.0f, 30.0f ,openfire,team_color);
+    // ==========================================
+    // 1. 发送云台姿态 (1000Hz)
+    // ==========================================
+    pack_Rpy(&data_r, (gimbal_fdb.yaw_offset_angle - ins.yaw), ins.pitch, ins.roll);
     Check_Rpy(&data_r);
+    CDC_Transmit_HS((uint8_t*)&data_r, sizeof(data_r));
 
-    CDC_Transmit_HS((uint8_t*)&data_r,  sizeof(data_r));
+    // ==========================================
+    // 引入静态分频计数器，降低低频数据的发送速率
+    // 1000Hz / 100 = 10Hz
+    // ==========================================
+    static uint16_t send_cnt = 0;
+    send_cnt++;
+    if (send_cnt >= 100)
+    {
+        send_cnt = 0;
 
-    // if (gimbal_cmd.ctrl_mode==GIMBAL_AUTO&&auto_relative_angle_status==RELATIVE_ANGLE_TRANS)
-    // {
-    //     auto_relative_angle_status=RELATIVE_ANGLE_OK;
-    // }
+        // ==========================================
+        // 2. 发送哨兵姿态数据 (降频至 10Hz)
+        // ==========================================
+        uint8_t pose_buf[7] = {0};
+        pose_buf[0] = 0xFF;
+        pose_buf[1] = 0x01;
+        pose_buf[2] = 0x06;
+        pose_buf[3] = 0x01;
+
+        uint8_t sentry_pose = (referee_fdb.sentry_info.sentry_info_2 >> 12) & 0x03;
+        pose_buf[4] = sentry_pose;
+
+        uint8_t sum_p = 0, add_p = 0;
+        for (int i = 0; i < 5; i++) {
+            sum_p += pose_buf[i];
+            add_p += sum_p;
+        }
+        pose_buf[5] = sum_p;
+        pose_buf[6] = add_p;
+
+        CDC_Transmit_HS(pose_buf, 7);
+
+        // ==========================================
+        // 3. 发送机器人血量数据 (降频至 10Hz)
+        // ==========================================
+        uint8_t hp_buf[38] = {0};
+        hp_buf[0] = 0xFF;
+        hp_buf[1] = 0x01;
+        hp_buf[2] = 0x31;
+        hp_buf[3] = 32;
+
+        uint16_t red_hp = referee_fdb.game_robot_HP.red_7_robot_HP;
+        uint16_t blue_hp = referee_fdb.game_robot_HP.blue_7_robot_HP;
+
+        hp_buf[14] = red_hp & 0xFF;
+        hp_buf[15] = (red_hp >> 8) & 0xFF;
+
+        hp_buf[30] = blue_hp & 0xFF;
+        hp_buf[31] = (blue_hp >> 8) & 0xFF;
+
+        uint8_t sum_h = 0, add_h = 0;
+        for (int i = 0; i < 36; i++) {
+            sum_h += hp_buf[i];
+            add_h += sum_h;
+        }
+        hp_buf[36] = sum_h;
+        hp_buf[37] = add_h;
+
+        CDC_Transmit_HS(hp_buf, 38);
+    }
 }
 
 //void judge_color()
@@ -147,7 +201,7 @@ void Send_to_pc(RpyTypeDef data_r)
 //}
 
 
-void pack_Rpy(RpyTypeDef *frame, float yaw, float pitch,float openfire, int team_color)   //此处roll值作为开火标志位
+void pack_Rpy(RpyTypeDef *frame, float yaw, float pitch, float roll)
 {
     int8_t rpy_tx_buffer[FRAME_RPY_LEN] = {0} ;
     int32_t rpy_data = 0;
@@ -164,18 +218,13 @@ void pack_Rpy(RpyTypeDef *frame, float yaw, float pitch,float openfire, int team
     rpy_tx_buffer[6] = *gimbal_rpy >> 8;
     rpy_tx_buffer[7] = *gimbal_rpy >> 16;
     rpy_tx_buffer[8] = *gimbal_rpy >> 24;
-    rpy_data = openfire *1000;
+    rpy_data = roll * 1000;
     rpy_tx_buffer[9] = *gimbal_rpy;
     rpy_tx_buffer[10] = *gimbal_rpy >> 8;
     rpy_tx_buffer[11] = *gimbal_rpy >> 16;
     rpy_tx_buffer[12] = *gimbal_rpy >> 24;
-    rpy_data = team_color *1000;
-    rpy_tx_buffer[13] = *gimbal_rpy;
-    rpy_tx_buffer[14] = *gimbal_rpy >> 8;
-    rpy_tx_buffer[15] = *gimbal_rpy >> 16;
-    rpy_tx_buffer[16] = *gimbal_rpy >> 24;
 
-    memcpy(&frame->DATA[0], rpy_tx_buffer,17);
+    memcpy(&frame->DATA[0], rpy_tx_buffer, 13);
 
     frame->LEN = FRAME_RPY_LEN;
 }
@@ -229,23 +278,37 @@ static void usb_input(uint8_t* Buf, uint32_t *Len)
                     memcpy(&rpy_rx_data, frame_buffer, sizeof(rpy_rx_data));
 
                     switch (rpy_rx_data.ID) {
+                        case CHASSIS_CTRL: {
+                            trans_fdb_data.linear_x = (*(int32_t *)&rpy_rx_data.DATA[0] / 10000.0);
+                            trans_fdb_data.linear_y = (*(int32_t *)&rpy_rx_data.DATA[4] / 10000.0);
+                            trans_fdb_data.linear_z = (*(int32_t *)&rpy_rx_data.DATA[8] / 10000.0);
+                            trans_fdb_data.angular_x = (*(int32_t *)&rpy_rx_data.DATA[12] / 10000.0);
+                            trans_fdb_data.angular_y = (*(int32_t *)&rpy_rx_data.DATA[16] / 10000.0);
+                            trans_fdb_data.angular_z = (*(int32_t *)&rpy_rx_data.DATA[20] / 10000.0);
+                        } break;
+
                         case GIMBAL: {
-                            if (rpy_rx_data.DATA[0]) { // 相对角度控制
-                                trans_fdb_data.yaw = (*(int32_t *)&rpy_rx_data.DATA[1] / 1000.0);
-                                trans_fdb_data.pitch = (*(int32_t *)&rpy_rx_data.DATA[5] / 1000.0);
-                                trans_fdb_data.roll = (*(int32_t *)&rpy_rx_data.DATA[9] / 1000.0);
-                                yaw_filtered=0.1f*trans_fdb_data.yaw+0.9f*trans_fdb_data.yaw;
-                                pitch_filtered=0.1f*trans_fdb_data.pitch+0.9f*trans_fdb_data.pitch;
-                                trans_fdb_data.yaw_filtered = yaw_filtered;
-                                trans_fdb_data.pitch_filtered = pitch_filtered;
-                            } else { // 绝对角度控制
-                                trans_fdb_data.yaw = (*(int32_t *)&rpy_rx_data.DATA[1] / 1000.0);
-                                trans_fdb_data.pitch = (*(int32_t *)&rpy_rx_data.DATA[5] / 1000.0);
-                                trans_fdb_data.roll = (*(int32_t *)&rpy_rx_data.DATA[9] / 1000.0);
-                                yaw_filtered=0.1f*trans_fdb_data.yaw+0.9f*trans_fdb_data.yaw;
-                                pitch_filtered=0.1f*trans_fdb_data.pitch+0.9f*trans_fdb_data.pitch;
-                                trans_fdb_data.yaw_filtered = yaw_filtered;
-                                trans_fdb_data.pitch_filtered = pitch_filtered;
+                            trans_fdb_data.yaw = -(*(int32_t *)&rpy_rx_data.DATA[1] / 1000.0);
+                            trans_fdb_data.pitch = (*(int32_t *)&rpy_rx_data.DATA[5] / 1000.0);
+                            trans_fdb_data.roll = (*(int32_t *)&rpy_rx_data.DATA[9] / 1000.0);
+                            trans_fdb_data.mode = (*(int32_t *)&rpy_rx_data.DATA[13] / 1000.0);
+                            yaw_filtered = 0.1f * trans_fdb_data.yaw + 0.9f * yaw_filtered;
+                            pitch_filtered = 0.1f * trans_fdb_data.pitch + 0.9f * pitch_filtered;
+                            trans_fdb_data.yaw_filtered = yaw_filtered;
+                            trans_fdb_data.pitch_filtered = pitch_filtered;
+                        } break;
+
+                        case POSE_CTRL: {
+                            trans_fdb_data.pose = (*(uint8_t *)&rpy_rx_data.DATA[0]);
+                            if (trans_fdb_data.pose == 3) {
+                                trans_fdb_data.chassis_power_limit = 150;
+                                trans_fdb_data.shooter_17mm_cooling_heat = 10 / 3;
+                            } else if (trans_fdb_data.pose == 2) {
+                                trans_fdb_data.chassis_power_limit = 50;
+                                trans_fdb_data.shooter_17mm_cooling_heat = 10 / 3;
+                            } else if (trans_fdb_data.pose == 1) {
+                                trans_fdb_data.chassis_power_limit = 50;
+                                trans_fdb_data.shooter_17mm_cooling_heat = 30;
                             }
                         } break;
 

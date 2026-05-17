@@ -251,6 +251,16 @@ struct trans_fdb_msg
     float yaw_filtered;
     float pitch_filtered;
     uint8_t heartbeat;
+    float linear_x;
+    float linear_y;
+    float linear_z;
+    float angular_x;
+    float angular_y;
+    float angular_z;
+    float mode;
+    uint8_t pose;
+    float chassis_power_limit;
+    float shooter_17mm_cooling_heat;
 };
 
 #endif

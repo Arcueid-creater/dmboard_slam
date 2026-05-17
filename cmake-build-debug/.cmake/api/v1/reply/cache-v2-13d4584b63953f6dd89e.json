@@ -163,7 +163,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "d:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/cmake-build-debug"
+			"value" : "d:/Robomaster/new_mecanum_revise_fusi/HNU_Embedded_Framework/cmake-build-debug"
 		},
 		{
 			"name" : "CMAKE_CACHE_MAJOR_VERSION",
@@ -259,10 +259,10 @@
 				},
 				{
 					"name" : "HELPSTRING",
-					"value" : "CXX compiler"
+					"value" : "No help, variable specified on the command line."
 				}
 			],
-			"type" : "STRING",
+			"type" : "UNINITIALIZED",
 			"value" : "D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/bin/arm-none-eabi-g++.exe"
 		},
 		{
@@ -387,10 +387,10 @@
 				},
 				{
 					"name" : "HELPSTRING",
-					"value" : "C compiler"
+					"value" : "No help, variable specified on the command line."
 				}
 			],
-			"type" : "STRING",
+			"type" : "UNINITIALIZED",
 			"value" : "D:/qq/wenjian/ARM_GCC/ARM_GCC/ARM_GCC/arm/bin/arm-none-eabi-gcc.exe"
 		},
 		{
@@ -635,7 +635,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/cmake-build-debug/CMakeFiles/pkgRedirects"
+			"value" : "D:/Robomaster/new_mecanum_revise_fusi/HNU_Embedded_Framework/cmake-build-debug/CMakeFiles/pkgRedirects"
 		},
 		{
 			"name" : "CMAKE_GENERATOR",
@@ -695,7 +695,7 @@
 				}
 			],
 			"type" : "INTERNAL",
-			"value" : "D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework"
+			"value" : "D:/Robomaster/new_mecanum_revise_fusi/HNU_Embedded_Framework"
 		},
 		{
 			"name" : "CMAKE_INSTALL_PREFIX",
@@ -1191,7 +1191,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework/cmake-build-debug"
+			"value" : "D:/Robomaster/new_mecanum_revise_fusi/HNU_Embedded_Framework/cmake-build-debug"
 		},
 		{
 			"name" : "CtrBoard-H7_ALL_IS_TOP_LEVEL",
@@ -1215,7 +1215,7 @@
 				}
 			],
 			"type" : "STATIC",
-			"value" : "D:/Robomaster/new_mecanum_revise/HNU_Embedded_Framework"
+			"value" : "D:/Robomaster/new_mecanum_revise_fusi/HNU_Embedded_Framework"
 		}
 	],
 	"kind" : "cache",

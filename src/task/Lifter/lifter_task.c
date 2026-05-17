@@ -518,7 +518,7 @@ void SetRefState(LifterController_t *lifter,struct lifter_cmd_msg cmd)
     }
      for (int i = 0; i < 4; i++)
      {
-         VAL_LIMIT(lifter->leg.ref_joint_angle[i],15.0f,80.0f);
+         VAL_LIMIT(lifter->leg.ref_joint_angle[i],15.0f,85.0f);
      }
      lifter->enable=cmd.enable;
     // lifter->state.h_ref=cmd.height;

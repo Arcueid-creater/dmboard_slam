@@ -8,9 +8,7 @@
 
 #define SBUS_HEAD 0X0F
 #define SBUS_END 0X00
-#define SBUS_RX_BUF_SIZE (25+12+4) //41
-
-#define DBUS_RX_BUF_SIZE (25+12+4) //41
+#define SBUS_RX_BUF_SIZE (25+25+12+4) //41
 
 
 /**
@@ -22,13 +20,13 @@ enum {
     RC_DN = 15,
 };
 
-typedef struct __attribute__((__packed__))
+typedef struct
 {
     uint16_t online;
     /* 摇杆最终值为：-784~783 */
     int16_t ch1;   //右侧左右
-    int16_t ch2;   //左侧上下
-    int16_t ch3;   //右侧上下
+    int16_t ch2;   //右侧上下
+    int16_t ch3;     //左侧上下
     int16_t ch4;   //左侧左右
     /* FS-i6x旋钮为线性，左右最终值为：-784~783 */
     int16_t ch5;   //左侧线性旋钮
@@ -38,10 +36,9 @@ typedef struct __attribute__((__packed__))
     uint8_t sw2;   //SWB，二档
     uint8_t sw3;   //SWC，三档
     uint8_t sw4;   //SWD，二档
-} sbus_data_t;
+}sbus_data_t;
 
-void sbus_data_init();
-void sbus_data_unpack(uint8_t *data, uint16_t len);
-
-
+int sbus_data_unpack(uint8_t* data, uint16_t len);
+sbus_data_t *sbus_rc_init(void);
+extern sbus_data_t sbus_data[2];
 #endif /* _RC_SBUS_H */

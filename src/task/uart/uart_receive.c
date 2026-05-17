@@ -9,7 +9,7 @@
 #include "usart.h"
 #include <string.h>
 #include "cmsis_os.h"
-#include "rc_dbus.h"
+#include "rc_sbus.h"
 #include "unitree_motor.h"
 // 自定义控制器串口
 static volatile uint8_t usart1_rx_buffer_index;  // 当前使用的接收缓冲区
@@ -20,7 +20,7 @@ static uint8_t usart1_rx_buffer[2][CUSTOMER_CONTROLLER_BUF_SIZE];
 // 福斯遥控器
 static volatile uint8_t usart5_rx_buffer_index;  // 当前使用的接收缓冲区
 static volatile uint16_t usart5_rx_size;
-static uint8_t usart5_rx_buffer[2][18];
+static uint8_t usart5_rx_buffer[2][DBUS_RX_BUF_SIZE];
 extern SemaphoreHandle_t xSemaphoreUART5;
 
 // 裁判系统串口 10
@@ -65,8 +65,9 @@ void process_uart5_data(void) {
     if (xSemaphoreTake(xSemaphoreUART5, 0) == pdTRUE) {
         finishedBuffer = usart5_rx_buffer_index ^ 1;
         /* SBUS协议解析 */
-//        sbus_data_unpack(usart5_rx_buffer[finishedBuffer], usart5_rx_size);
-        dbus_rc_decode(usart5_rx_buffer[finishedBuffer]);
+        sbus_data_unpack(usart5_rx_buffer[finishedBuffer], usart5_rx_size);
+
+        memset(usart5_rx_buffer[finishedBuffer], 0, DBUS_RX_BUF_SIZE);
 
 
         // memset(usart5_rx_buffer[finishedBuffer], 0, DBUS_RX_BUF_SIZE);
@@ -149,10 +150,6 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef * huart, uint16_t Size)
     if(huart->Instance == UART5)
     {
         sizea=Size;
-        // if (Size !=18)
-        // {
-        //     return;
-        // }
 
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 

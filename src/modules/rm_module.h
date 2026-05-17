@@ -28,7 +28,7 @@
 #include "BMI088driver.h"
 #include "uMCN.h"
 #include "bsp_log.h"
-#include "rc_dbus.h"
+#include "rc_sbus.h"
 #include "hal_can.h"
 #include "referee_system.h"
 #include "dm_imu.h"

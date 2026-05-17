@@ -1,5 +1,5 @@
 //
-// Created by Áõ¼Î¿¡ on 25-2-25.
+// Created by ï¿½ï¿½ï¿½Î¿ï¿½ on 25-2-25.
 //
 
 #include "referee_system.h"
@@ -7,17 +7,17 @@
 #include "string.h"
 
 
-/* --------------------------------²ÃÅÐÏµÍ³´®¿Ú¾ä±ú ------------------------------- */
-static referee_data_header_t referee_data_header;   //½ÓÊÕÊý¾ÝÖ¡Í·½á¹¹Ìå
-static referee_data_t referee_data;   //½ÓÊÕÊý¾ÝÖ¡Í·½á¹¹Ìå
+/* --------------------------------ï¿½ï¿½ï¿½ï¿½ÏµÍ³ï¿½ï¿½ï¿½Ú¾ï¿½ï¿½ ------------------------------- */
+static referee_data_header_t referee_data_header;   //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¡Í·ï¿½á¹¹ï¿½ï¿½
+static referee_data_t referee_data;   //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö¡Í·ï¿½á¹¹ï¿½ï¿½
 static unpack_data_t referee_unpack_obj;
-static float float_values[7] = {0}; // ´æ´¢×ª»»ºóµÄ7¸öfloat¡£¸Ä³É¶ÓÁÐ´«Êä
+static float float_values[7] = {0}; // ï¿½æ´¢×ªï¿½ï¿½ï¿½ï¿½ï¿½7ï¿½ï¿½floatï¿½ï¿½ï¿½Ä³É¶ï¿½ï¿½Ð´ï¿½ï¿½ï¿½
 
 
 struct referee_fdb_msg referee_fdb;
 
 
-/*!½á¹¹ÌåÊµÀý»¯*/
+/*!ï¿½á¹¹ï¿½ï¿½Êµï¿½ï¿½ï¿½ï¿½*/
 static game_status_t                           game_status;
 static game_result_t                           game_result;
 static game_robot_HP_t                         game_robot_HP;
@@ -87,42 +87,42 @@ void referee_system_init()
 
 
 /**
- * @brief ²ÃÅÐÏµÍ³Êý¾Ý½â°üº¯Êý
+ * @brief ï¿½ï¿½ï¿½ï¿½ÏµÍ³ï¿½ï¿½ï¿½Ý½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
  */
 void referee_data_unpack(uint8_t *data, uint16_t len)
 {
     for (uint16_t i = 0; i < len; i++) {
         uint8_t byte = data[i];
-        switch (referee_unpack_obj.unpack_step)  //×´Ì¬×ª»»»ú
+        switch (referee_unpack_obj.unpack_step)  //×´Ì¬×ªï¿½ï¿½ï¿½ï¿½
         {
-            case STEP_HEADER_SOF:      //Èç¹ûÊÇ¶ÁÈ¡Ö¡Í·SOFµÄ×´Ì¬
+            case STEP_HEADER_SOF:      //ï¿½ï¿½ï¿½ï¿½Ç¶ï¿½È¡Ö¡Í·SOFï¿½ï¿½×´Ì¬
             {
-                if (byte == HEADER_SOF)       //ÅÐ¶ÏÊÇ·ñÎªSOF
+                if (byte == HEADER_SOF)       //ï¿½Ð¶ï¿½ï¿½Ç·ï¿½ÎªSOF
                 {
-                    referee_unpack_obj.protocol_packet[referee_unpack_obj.index++] = byte;  //½«Êý¾ÝÂëºÃ£¬²¢½«Ë÷Òý³¤¶È¼Ó1
-                    referee_unpack_obj.unpack_step = STEP_DATA_SIZE_LOW;       //¸Ä±ä×´Ì¬£¬ÏÂ´ÎÄÃ³öÀ´µÄbyte£¬È¥ÊÔÍ¼ÕÕÓ¦Êý¾Ý³¤¶ÈµÄµÍ°ËÎ»
+                    referee_unpack_obj.protocol_packet[referee_unpack_obj.index++] = byte;  //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½È¼ï¿½1
+                    referee_unpack_obj.unpack_step = STEP_DATA_SIZE_LOW;       //ï¿½Ä±ï¿½×´Ì¬ï¿½ï¿½ï¿½Â´ï¿½ï¿½Ã³ï¿½ï¿½ï¿½ï¿½ï¿½byteï¿½ï¿½È¥ï¿½ï¿½Í¼ï¿½ï¿½Ó¦ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ÈµÄµÍ°ï¿½Î»
                 } else {
-                    referee_unpack_obj.index = 0;   //Èç¹û²»ÊÇ£¬¾ÍÔÙ´ÓfifoÖÐÄÃ³öÀ´Ò»¸öbyte£¬¼ÌÐø¶Á£¬Ö±µ½¶Á³öÀ´Ò»¸ösof
+                    referee_unpack_obj.index = 0;   //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ç£ï¿½ï¿½ï¿½ï¿½Ù´ï¿½fifoï¿½ï¿½ï¿½Ã³ï¿½ï¿½ï¿½Ò»ï¿½ï¿½byteï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½sof
                 }
             }
                 break;
 
-            case STEP_DATA_SIZE_LOW:       //Èç¹ûÄ¿Ç°µÄ×´Ì¬ÊÇ¶ÁµÄÊý¾Ý³¤¶ÈµÄµÍ°ËÎ»
+            case STEP_DATA_SIZE_LOW:       //ï¿½ï¿½ï¿½Ä¿Ç°ï¿½ï¿½×´Ì¬ï¿½Ç¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ÈµÄµÍ°ï¿½Î»
             {
-                referee_unpack_obj.p_header->data_length = byte;           //µÍ°ËÎ»Ö±½Ó·ÅÈë
-                referee_unpack_obj.protocol_packet[referee_unpack_obj.index++] = byte;   //ÂëºÃÊý¾Ý
-                referee_unpack_obj.unpack_step = STEP_DATA_SIZE_HIGH;          //×ª±ä×´Ì¬
+                referee_unpack_obj.p_header->data_length = byte;           //ï¿½Í°ï¿½Î»Ö±ï¿½Ó·ï¿½ï¿½ï¿½
+                referee_unpack_obj.protocol_packet[referee_unpack_obj.index++] = byte;   //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+                referee_unpack_obj.unpack_step = STEP_DATA_SIZE_HIGH;          //×ªï¿½ï¿½×´Ì¬
             }
                 break;
 
-            case STEP_DATA_SIZE_HIGH:  //Èç¹ûÄ¿Ç°µÄ×´Ì¬Ê±¶ÁÊý¾Ý³¤¶ÈµÄ¸ß°ËÎ»
+            case STEP_DATA_SIZE_HIGH:  //ï¿½ï¿½ï¿½Ä¿Ç°ï¿½ï¿½×´Ì¬Ê±ï¿½ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ÈµÄ¸ß°ï¿½Î»
             {
-                referee_unpack_obj.p_header->data_length |= (byte << 8);     //·ÅÈëdata_lenµÄ¸ß°ËÎ»
-                referee_unpack_obj.protocol_packet[referee_unpack_obj.index++] = byte;  //ÂëºÃÊý¾Ý
+                referee_unpack_obj.p_header->data_length |= (byte << 8);     //ï¿½ï¿½ï¿½ï¿½data_lenï¿½Ä¸ß°ï¿½Î»
+                referee_unpack_obj.protocol_packet[referee_unpack_obj.index++] = byte;  //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
                 if (referee_unpack_obj.p_header->data_length < REF_PROTOCOL_DATA_MAX_SIZE) {
-                    referee_unpack_obj.unpack_step = STEP_FRAME_SEQ;        //×ª±ä×´Ì¬£¬ÏÂÒ»¸ö¸Ã¶Á°üÐòºÅ
+                    referee_unpack_obj.unpack_step = STEP_FRAME_SEQ;        //×ªï¿½ï¿½×´Ì¬ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½Ã¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
                 } else {
-                    //Èç¹ûÊý¾Ý³¤¶È²»ºÏ·¨£¬¾ÍÖØÍ·¿ªÊ¼¶ÁÈ¡£¬²¢ÇÒÖ®Ç°ÂëºÃµÄÊý¾Ý×÷·Ï
+                    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½È²ï¿½ï¿½Ï·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í·ï¿½ï¿½Ê¼ï¿½ï¿½È¡ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö®Ç°ï¿½ï¿½Ãµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
                     memset(&referee_unpack_obj, 0, sizeof(unpack_data_t));
                     referee_unpack_obj.unpack_step = STEP_HEADER_SOF;
                     referee_unpack_obj.index = 0;
@@ -132,20 +132,20 @@ void referee_data_unpack(uint8_t *data, uint16_t len)
                 break;
 
             case STEP_FRAME_SEQ: {
-                referee_unpack_obj.protocol_packet[referee_unpack_obj.index++] = byte;  //ÂëºÃÊý¾Ý
-                referee_unpack_obj.unpack_step = STEP_HEADER_CRC8;          //×ª»»×´Ì¬£¬ÏÂÒ»¸öbyte¶ÁµÄÊÇCRC8
+                referee_unpack_obj.protocol_packet[referee_unpack_obj.index++] = byte;  //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+                referee_unpack_obj.unpack_step = STEP_HEADER_CRC8;          //×ªï¿½ï¿½×´Ì¬ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½byteï¿½ï¿½ï¿½ï¿½ï¿½ï¿½CRC8
             }
                 break;
 
             case STEP_HEADER_CRC8: {
-                //ÏÈ½«ÕâÒ»byteÊý¾Ý·ÅÈë£¬Ê¹Ö¡Í·½á¹¹ÍêÕû£¬ÒÔ±ãºóÃæ¿ÉÒÔ½øÐÐCRCÐ£Ñé
+                //ï¿½È½ï¿½ï¿½ï¿½Ò»byteï¿½ï¿½ï¿½Ý·ï¿½ï¿½ë£¬Ê¹Ö¡Í·ï¿½á¹¹ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô±ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ô½ï¿½ï¿½ï¿½CRCÐ£ï¿½ï¿½
                 referee_unpack_obj.protocol_packet[referee_unpack_obj.index++] = byte;
-                //Èç¹ûÕâÒ»byte·ÅÈëÖ®ºó£¬Êý¾Ý³¤¶ÈÊÇÒ»¸öÖ¡Í·µÄ³¤¶È£¬ÄÇÃ´¾Í½øÐÐCRCÐ£Ñé
+                //ï¿½ï¿½ï¿½ï¿½ï¿½Ò»byteï¿½ï¿½ï¿½ï¿½Ö®ï¿½ï¿½ï¿½ï¿½ï¿½Ý³ï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½Ö¡Í·ï¿½Ä³ï¿½ï¿½È£ï¿½ï¿½ï¿½Ã´ï¿½Í½ï¿½ï¿½ï¿½CRCÐ£ï¿½ï¿½
                 if (referee_unpack_obj.index == REF_PROTOCOL_HEADER_SIZE) {
                     if (verify_CRC8_check_sum(referee_unpack_obj.protocol_packet, REF_PROTOCOL_HEADER_SIZE)) {
-                        referee_unpack_obj.unpack_step = STEP_DATA_CRC16;   //Èç¹ûÐ£ÑéÍ¨¹ý£¬Ôò×´Ì¬×ª»»³ÉÈ¥¶ÁÈ¡Ö¡Î²
+                        referee_unpack_obj.unpack_step = STEP_DATA_CRC16;   //ï¿½ï¿½ï¿½Ð£ï¿½ï¿½Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×´Ì¬×ªï¿½ï¿½ï¿½ï¿½È¥ï¿½ï¿½È¡Ö¡Î²
                     } else {
-                        //Èç¹ûÐ£Ñé²»Í¨¹ý£¬Ôò´ÓÍ·¿ªÊ¼£¬Ö®Ç°ÂëºÃµÄÊý¾Ý×÷·Ï
+                        //ï¿½ï¿½ï¿½Ð£ï¿½é²»Í¨ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í·ï¿½ï¿½Ê¼ï¿½ï¿½Ö®Ç°ï¿½ï¿½Ãµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
                         memset(&referee_unpack_obj, 0, sizeof(unpack_data_t));
                         referee_unpack_obj.unpack_step = STEP_HEADER_SOF;
                         referee_unpack_obj.index = 0;
@@ -155,13 +155,13 @@ void referee_data_unpack(uint8_t *data, uint16_t len)
                 break;
 
             case STEP_DATA_CRC16: {
-                //´ÓÖ¡Í·µ½Ö¡Î²µÄ¹ý³ÌÖÐµÄÊý¾ÝÒ»ÂÉÂëºÃ
+                //ï¿½ï¿½Ö¡Í·ï¿½ï¿½Ö¡Î²ï¿½Ä¹ï¿½ï¿½ï¿½ï¿½Ðµï¿½ï¿½ï¿½ï¿½ï¿½Ò»ï¿½ï¿½ï¿½ï¿½ï¿½
                 if (referee_unpack_obj.index < (REF_HEADER_CRC_CMD_SIZE + referee_unpack_obj.p_header->data_length)) {
                     referee_unpack_obj.protocol_packet[referee_unpack_obj.index++] = byte;
                 }
-                //Èç¹ûÊý¾Ý¶ÁÈ¡µ½dataÄ©Î²£¬Ôò×ª»»×´Ì¬£¬×¼±¸¿ªÊ¼ÐÂÒ»Ö¡µÄ¶ÁÈ¡
+                //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý¶ï¿½È¡ï¿½ï¿½dataÄ©Î²ï¿½ï¿½ï¿½ï¿½×ªï¿½ï¿½×´Ì¬ï¿½ï¿½×¼ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½Ò»Ö¡ï¿½Ä¶ï¿½È¡
                 if (referee_unpack_obj.index >= (REF_HEADER_CRC_CMD_SIZE + referee_unpack_obj.p_header->data_length)) {
-                    //Õû°üÊý¾ÝÐ£Ñé
+                    //ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ð£ï¿½ï¿½
                     if (verify_CRC16_check_sum(referee_unpack_obj.protocol_packet,
                                                REF_HEADER_CRC_CMD_SIZE + referee_unpack_obj.p_header->data_length)) {
                         referee_data_save(referee_unpack_obj.protocol_packet);
@@ -183,8 +183,8 @@ void referee_data_unpack(uint8_t *data, uint16_t len)
 }
 
 /**
- * @brief ²ÃÅÐÏµÍ³ÃüÁîÊý¾Ý½â°üº¯Êý
- * @param referee_data_frame: ½ÓÊÕµ½µÄÕûÖ¡Êý¾Ý
+ * @brief ï¿½ï¿½ï¿½ï¿½ÏµÍ³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ý½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+ * @param referee_data_frame: ï¿½ï¿½ï¿½Õµï¿½ï¿½ï¿½ï¿½ï¿½Ö¡ï¿½ï¿½ï¿½ï¿½
  */
 void referee_data_save(uint8_t* frame)
 {
@@ -205,6 +205,7 @@ void referee_data_save(uint8_t* frame)
             break;
         case GAME_ROBOT_HP_CMD_ID:
             memcpy(&game_robot_HP, frame + index, sizeof(game_robot_HP_t));
+            memcpy(&(referee_fdb.game_robot_HP), frame + index, sizeof(game_robot_HP_t));
             break;
         case FIELD_EVENTS_CMD_ID:
             memcpy(&event_data, frame + index, sizeof(event_data_t));
@@ -251,6 +252,7 @@ void referee_data_save(uint8_t* frame)
             break;
         case SENTRY_AUTONOMY__CMD_ID :
             memcpy(&sentry_info, frame + index, sizeof(sentry_info_t));
+            memcpy(&(referee_fdb.sentry_info), frame + index, sizeof(sentry_info_t));
             break;
         case RADAR_AUTONOMY_CMD_ID :
             memcpy(&radar_info, frame + index, sizeof(radar_info_t));
@@ -260,7 +262,7 @@ void referee_data_save(uint8_t* frame)
             break;
         case ARM_DATA_FROM_CONTROLLER_CMD_ID_2 :
             memcpy(&custom_robot_data, frame + index, sizeof(custom_robot_data_t));
-            // Ö±½Ó×ª´æÒ£¿ØÊý¾Ý
+            // Ö±ï¿½ï¿½×ªï¿½ï¿½Ò£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
             for (int i = 0; i < 7; i++) {
                 uint8_t *byte_ptr = &custom_robot_data.data[i * 4];
                 memcpy(&float_values[i], byte_ptr, sizeof(float));

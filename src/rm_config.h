@@ -36,7 +36,7 @@
 
 
 /* ---------------------------------- 遥控器相关 --------------------------------- */
-#define RC_MAX_VALUE      784.0f  /* 遥控器通道最大值 */
+#define RC_MAX_VALUE      785.0f  /* 遥控器通道最大值 */
 
 /* 遥控器模式下的底盘最大速度限制 */
 /* 底盘平移速度 */
@@ -71,9 +71,10 @@
 #define LIFTER_AMPLITUDE 0.042f
 #define LIFTER_PERIOD 2000 //ms
 // #define LIFTER_
-#define LIFTER_KP_V_MOTOR 0.0500f
+#define LIFTER_KP_V_MOTOR 0.0600f
 #define LIFTER_KI_V_MOTOR 0.0040f
 #define LIFTER_KD_V_MOTOR 0.0001f
+
 #define LIFTER_INTEGRAL_V_MOTOR 1.000f
 #define LIFTER_MAX_V_MOTOR 2.500f
 #define LIFTER_KP_PA_MOTOR  3.00f
@@ -152,7 +153,7 @@
 #define CHASSIS_KP_V_MOTOR              8
 #define CHASSIS_KI_V_MOTOR              15
 #define CHASSIS_KD_V_MOTOR              0
-#define CHASSIS_INTEGRAL_V_MOTOR        8000
+#define CHASSIS_INTEGRAL_V_MOTOR        10000
 #define CHASSIS_MAX_V_MOTOR             16000
 // TODO: 参数待整定
 /* 跟随云台PID */
