@@ -310,29 +310,29 @@ static void ChassisState_Ctrl()
     chassis_cmd_data.offset_angle = gimbal_fdb_data.yaw_relative_angle;
 
 
-    if (rc_now->sw2==RC_UP)
+    if (rc_now->sw4==RC_UP)
     {
         chassis_cmd_data.ctrl_mode=CHASSIS_RELAX;
     }
-    if (rc_now->sw2!=RC_UP&&rc_now->sw2!=0)//所有状态机需要在使能模式下才能转变
+    if (rc_now->sw4!=RC_UP)//所有状态机需要在使能模式下才能转变
     {
-        if (rc_now->sw2==RC_MI||rc_now->sw2==RC_DN)
+        if (rc_now->sw4==RC_DN&&rc_now->sw1!=RC_DN)
         {
             chassis_cmd_data.ctrl_mode=CHASSIS_NO_GIMBAL;//目前没有云台，
         }
-        if (rc_now->sw1==RC_DN&&chassis_cmd_data.ctrl_mode==CHASSIS_NO_GIMBAL)//处于LIFTER_HEIGHT_KEEP模式，说明之前归中任务完成，可以直接转换成小陀螺模式
+        if (rc_now->sw4==RC_DN&&rc_now->sw1==RC_DN)
         {
-            // chassis_cmd_data.ctrl_mode=CHASSIS_SPIN;
+            chassis_cmd_data.ctrl_mode=CHASSIS_SLAM;
         }
-        if ((chassis_cmd_data.last_mode==CHASSIS_SPIN||chassis_cmd_data.ctrl_mode==CHASSIS_SPIN)&&rc_now->sw1!=RC_DN)//必须满足上一次时旋转模式，并且上一次的拨杆时在下方，
-            //拨杆拨动，退出小陀螺模式，才能确保转换状态正常完成，并且需要进行一次归中
-        {
-            chassis_cmd_data.ctrl_mode=CHASSIS_RETURN;
-        }
-        if ( chassis_cmd_data.ctrl_mode==CHASSIS_RETURN)
-        {
-
-        }
+        // if ((chassis_cmd_data.last_mode==CHASSIS_SPIN||chassis_cmd_data.ctrl_mode==CHASSIS_SPIN)&&rc_now->sw1!=RC_DN)//必须满足上一次时旋转模式，并且上一次的拨杆时在下方，
+        //     //拨杆拨动，退出小陀螺模式，才能确保转换状态正常完成，并且需要进行一次归中
+        // {
+        //     chassis_cmd_data.ctrl_mode=CHASSIS_RETURN;
+        // }
+        // if ( chassis_cmd_data.ctrl_mode==CHASSIS_RETURN)
+        // {
+        //
+        // }
     }
     switch (chassis_cmd_data.ctrl_mode)
     {
@@ -343,7 +343,7 @@ static void ChassisState_Ctrl()
         case CHASSIS_NO_GIMBAL:
             chassis_cmd_data.vx =  (float)rc_now->ch1 * CHASSIS_RC_MOVE_RATIO_X / RC_MAX_VALUE * MAX_CHASSIS_VX_SPEED ;
             chassis_cmd_data.vy =  (float)rc_now->ch2 * CHASSIS_RC_MOVE_RATIO_Y / RC_MAX_VALUE * MAX_CHASSIS_VY_SPEED ;
-            chassis_cmd_data.vw =  (float)rc_now->ch3 * CHASSIS_RC_MOVE_RATIO_R / RC_MAX_VALUE * MAX_CHASSIS_VR_SPEED ;
+            chassis_cmd_data.vw =  (float)rc_now->ch4 * CHASSIS_RC_MOVE_RATIO_R / RC_MAX_VALUE * MAX_CHASSIS_VR_SPEED ;
 
             break;
         case CHASSIS_SPIN:
@@ -374,6 +374,12 @@ static void ChassisState_Ctrl()
             chassis_cmd_data.vx =  (float)rc_now->ch1 * CHASSIS_RC_MOVE_RATIO_X / RC_MAX_VALUE * MAX_CHASSIS_VX_SPEED;
             chassis_cmd_data.vy =  (float)rc_now->ch2 * CHASSIS_RC_MOVE_RATIO_Y / RC_MAX_VALUE * MAX_CHASSIS_VY_SPEED;
             break;
+
+        case CHASSIS_SLAM:
+            chassis_cmd_data.vx =  (float)rc_now->ch1 * CHASSIS_RC_MOVE_RATIO_X / RC_MAX_VALUE * MAX_CHASSIS_VX_SPEED -trans_fdb_data.linear_x*1000.0f;
+            chassis_cmd_data.vy =  (float)rc_now->ch2 * CHASSIS_RC_MOVE_RATIO_Y / RC_MAX_VALUE * MAX_CHASSIS_VY_SPEED -trans_fdb_data.linear_y*1000.0f;
+            chassis_cmd_data.vw =  (float)rc_now->ch4 * CHASSIS_RC_MOVE_RATIO_R / RC_MAX_VALUE * MAX_CHASSIS_VR_SPEED +trans_fdb_data.linear_z;
+            break;
     }
 
 }
@@ -381,15 +387,15 @@ static void LifterState_Ctrl()
 {
     lifter_cmd.last_mode=lifter_cmd.ctrl_mode;
         ////TODO 现在是开小陀螺的时候打开升降底盘，按操作手需求，是否开启自瞄时自动小陀螺
-        if (rc_now->sw2==RC_UP)
+        if (rc_now->sw4==RC_UP)
         {
             lifter_cmd.ctrl_mode=LIFTER_RELAX;
         }
-        if (rc_now->sw2!=RC_UP&&rc_now->sw2!=0)//所有状态机需要在使能模式下才能转变
+        if (rc_now->sw4!=RC_UP)//所有状态机需要在使能模式下才能转变
         {
-            if (rc_now->sw2==RC_MI||rc_now->sw2==RC_DN)//因为直接一下拨打RC_DN，是自瞄模式，直接开启自瞄模式，默认需要进行归中操作
+            if (rc_now->sw4==RC_DN)//因为直接一下拨打RC_DN，是自瞄模式，直接开启自瞄模式，默认需要进行归中操作
             {
-                if (rc_last->sw2==RC_UP||lifter_cmd.last_mode==LIFTER_RELAX)//如果没有完成归中操作，需要先进行归中
+                if (rc_last->sw4==RC_UP||lifter_cmd.last_mode==LIFTER_RELAX)//如果没有完成归中操作，需要先进行归中
                 {
                     lifter_cmd.ctrl_mode=LIFTER_HEIGHT_INIT;
                 }//转换成初始化的控制模式之后，完成归中会自动转换为KEEP模式
@@ -461,12 +467,12 @@ static void LifterState_Ctrl()
             case LIFTER_HEIGHT_KEEP://这个状态机是控制的是一般情况下的底盘高度，如果进入修改高度的模式，KEEP模式下的高度会继承
                 //KEEP模式不需要做特别处理，这个函数结束时，会给lifter_cmd.height赋值
                 lifter_cmd.Kd=0.01f;
-                lifter_cmd.target_angle+=((float)rc_now->ch4)*0.0001f;
+                lifter_cmd.target_angle=-((float)rc_now->ch3)/RC_MAX_VALUE*35.0f+50.0f;//遥控器线性映射
                 VAL_LIMIT(lifter_cmd.target_angle,15.0f,85.0f);
                 break;
             case LIFTER_HEIGHT_INIT:
                 lifter_cmd.enable=1;
-                lifter_cmd.target_angle=45.0f;
+                lifter_cmd.target_angle=50.0f;
                 lifter_cmd.dTarget_angle=0.0f;
                 lifter_cmd.Kd=0.03f;
                 // height_ref.dheight=0.0f;

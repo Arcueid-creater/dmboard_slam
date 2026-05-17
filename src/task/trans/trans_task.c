@@ -7,20 +7,45 @@
 
 
 #define HEART_BEAT 500 //ms
+#define USB_RX_RING_SIZE 512  // USB接收环形缓冲区大小
+
+/*------------------------------USB接收环形缓冲区--------------------------------- */
+typedef struct {
+    uint8_t buffer[USB_RX_RING_SIZE];
+    uint32_t write_idx;
+    uint32_t read_idx;
+} ring_buffer_t;
+
+static ring_buffer_t usb_rx_ring;
+
+static void ring_put_force(ring_buffer_t *rb, const uint8_t *data, uint32_t len) {
+    for (uint32_t i = 0; i < len; i++) {
+        rb->buffer[rb->write_idx % USB_RX_RING_SIZE] = data[i];
+        rb->write_idx++;
+        if (rb->write_idx - rb->read_idx > USB_RX_RING_SIZE) {
+            rb->read_idx = rb->write_idx - USB_RX_RING_SIZE;
+        }
+    }
+}
+
+static uint32_t ring_available(ring_buffer_t *rb) {
+    return rb->write_idx - rb->read_idx;
+}
+
+static uint32_t ring_get(ring_buffer_t *rb, uint8_t *data, uint32_t len) {
+    uint32_t avail = ring_available(rb);
+    if (len > avail) return 0;
+    for (uint32_t i = 0; i < len; i++) {
+        data[i] = rb->buffer[rb->read_idx % USB_RX_RING_SIZE];
+        rb->read_idx++;
+    }
+    return len;
+}
 
 /*------------------------------传输数据相关 --------------------------------- */
 
 extern struct referee_fdb_msg referee_fdb;
 
-// 接收数据回调函数
-static uint8_t frame_buffer[sizeof(RpyTypeDef)];
-static uint32_t frame_index = 0;
-static enum {
-    WAIT_FOR_HEADER,
-    RECEIVING_DATA
-} receive_state = WAIT_FOR_HEADER;
-
-uint8_t buf[31] = {0};
 RpyTypeDef rpy_tx_data={
         .HEAD = 0XFF,
         .D_ADDR = MAINFLOD,
@@ -32,7 +57,6 @@ RpyTypeDef rpy_tx_data={
 };
 RpyTypeDef rpy_rx_data; //接收解析结构体
 static uint32_t heart_dt;
-TeamColor  team_color;
 /* ---------------------------------usb虚拟串口数据相关 --------------------------------- */
 
 /* -------------------------------- 线程间通讯话题相关 ------------------------------- */
@@ -60,18 +84,12 @@ static void trans_pub_push(void);
 static void trans_sub_init(void);
 static void trans_sub_pull(void);
 float yaw_obs=0;
-/*------------------------------自瞄相对角传参反馈--------------------------------------*/
-extern auto_relative_angle_status_e auto_relative_angle_status;
-
-uint8_t *r_buffer_point; //用于清除环形缓冲区buffer的指针
 
 /* --------------------------------- 通讯线程入口 --------------------------------- */
 static float trans_dt;
 static float trans_start;
-static float heart_start;
 static float yaw_filtered=0;
 static float pitch_filtered=0;
-int8_t a;
 
 void trans_task_init(){
     trans_sub_init();
@@ -83,32 +101,16 @@ void trans_control(){
 /*--------------------------------------------------具体需要发送的数据--------------------------------- */
     if((dwt_get_time_ms()-heart_dt)>=HEART_BEAT)
     {
-        // if(flag == 1)
-        // {
-        //     flag = 0;
-        //     trans_fdb_data.pitch = pitch_auto_0;
-        //     trans_fdb_data.yaw = yaw_auto_0;
-        // }
-        // else
-        // {
-        //     flag = 1;
-        //     trans_fdb_data.pitch = pitch_auto_1;
-        //     trans_fdb_data.yaw = yaw_auto_1;
-        // }
-        //
         heart_dt=dwt_get_time_ms();
     }
-//        judge_color();
     Send_to_pc(rpy_tx_data);
     yaw_obs=gimbal_fdb.yaw_offset_angle - gim_ins.yaw;
-    // vTaskDelay(100);
 
 /*--------------------------------------------------具体需要发送的数据---------------------------------*/
     /* 用于调试监测线程调度使用 */
     trans_dt = dwt_get_time_ms() - trans_start;
     if (trans_dt > 1)
         LOGINFO("Transmission Task is being DELAY! dt = [%f]\r\n", &trans_dt);
-    // vTaskDelay(1);
 
 }
 
@@ -191,16 +193,6 @@ void Send_to_pc(RpyTypeDef data_r)
     }
 }
 
-//void judge_color()
-//{
-//    referee_data.robot_status.robot_id = 103 ;   //以后在此处进行机器人id的赋值，即确定机器人颜色和种类
-//    if(referee_data.robot_status.robot_id < 10)
-//        team_color = RED;
-//    else
-//        team_color = BLUE;
-//}
-
-
 void pack_Rpy(RpyTypeDef *frame, float yaw, float pitch, float roll)
 {
     int8_t rpy_tx_buffer[FRAME_RPY_LEN] = {0} ;
@@ -252,84 +244,72 @@ void Check_Rpy(RpyTypeDef *frame)
 
 
 
-static void usb_input(uint8_t* Buf, uint32_t *Len)
-{
-    a++;
-
-    for(uint32_t i = 0; i < *Len; i++) {
-        uint8_t current_byte = Buf[i];
-
-        switch(receive_state) {
-            case WAIT_FOR_HEADER:
-                if(current_byte == 0xFF) {
-                    frame_index = 0;
-                    frame_buffer[frame_index++] = current_byte;
-                    receive_state = RECEIVING_DATA;
-                }
-                break;
-
-            case RECEIVING_DATA:
-                frame_buffer[frame_index++] = current_byte;
-
-                // 检查是否收到完整帧
-                if(frame_index >= sizeof(RpyTypeDef))
-                {
-                    // 处理完整帧
-                    memcpy(&rpy_rx_data, frame_buffer, sizeof(rpy_rx_data));
-
-                    switch (rpy_rx_data.ID) {
-                        case CHASSIS_CTRL: {
-                            trans_fdb_data.linear_x = (*(int32_t *)&rpy_rx_data.DATA[0] / 10000.0);
-                            trans_fdb_data.linear_y = (*(int32_t *)&rpy_rx_data.DATA[4] / 10000.0);
-                            trans_fdb_data.linear_z = (*(int32_t *)&rpy_rx_data.DATA[8] / 10000.0);
-                            trans_fdb_data.angular_x = (*(int32_t *)&rpy_rx_data.DATA[12] / 10000.0);
-                            trans_fdb_data.angular_y = (*(int32_t *)&rpy_rx_data.DATA[16] / 10000.0);
-                            trans_fdb_data.angular_z = (*(int32_t *)&rpy_rx_data.DATA[20] / 10000.0);
-                        } break;
-
-                        case GIMBAL: {
-                            trans_fdb_data.yaw = -(*(int32_t *)&rpy_rx_data.DATA[1] / 1000.0);
-                            trans_fdb_data.pitch = (*(int32_t *)&rpy_rx_data.DATA[5] / 1000.0);
-                            trans_fdb_data.roll = (*(int32_t *)&rpy_rx_data.DATA[9] / 1000.0);
-                            trans_fdb_data.mode = (*(int32_t *)&rpy_rx_data.DATA[13] / 1000.0);
-                            yaw_filtered = 0.1f * trans_fdb_data.yaw + 0.9f * yaw_filtered;
-                            pitch_filtered = 0.1f * trans_fdb_data.pitch + 0.9f * pitch_filtered;
-                            trans_fdb_data.yaw_filtered = yaw_filtered;
-                            trans_fdb_data.pitch_filtered = pitch_filtered;
-                        } break;
-
-                        case POSE_CTRL: {
-                            trans_fdb_data.pose = (*(uint8_t *)&rpy_rx_data.DATA[0]);
-                            if (trans_fdb_data.pose == 3) {
-                                trans_fdb_data.chassis_power_limit = 150;
-                                trans_fdb_data.shooter_17mm_cooling_heat = 10 / 3;
-                            } else if (trans_fdb_data.pose == 2) {
-                                trans_fdb_data.chassis_power_limit = 50;
-                                trans_fdb_data.shooter_17mm_cooling_heat = 10 / 3;
-                            } else if (trans_fdb_data.pose == 1) {
-                                trans_fdb_data.chassis_power_limit = 50;
-                                trans_fdb_data.shooter_17mm_cooling_heat = 30;
-                            }
-                        } break;
-
-                        case HEARTBEAT: {
-                            trans_fdb_data.heartbeat = (*(uint8_t *)&rpy_rx_data.DATA[0]);
-                            heart_dt = dwt_get_time_ms();
-                        } break;
-                    }
-
-                    memset(&rpy_rx_data, 0, sizeof(rpy_rx_data));
-                    memset(frame_buffer, 0, sizeof(frame_buffer));
-                    receive_state = WAIT_FOR_HEADER;
-                }
-                break;
-        }
-    }
-}
-// 非静态函数，供其他文件调用
 void process_usb_data(uint8_t* Buf, uint32_t *Len)
 {
-    usb_input(Buf, Len);
+    // 将收到的数据放入环形缓冲区
+    ring_put_force(&usb_rx_ring, Buf, *Len);
+
+    uint8_t frame[sizeof(RpyTypeDef)];
+
+    // 循环提取所有完整帧
+    while (ring_available(&usb_rx_ring) >= sizeof(RpyTypeDef)) {
+        // 查找帧头 0xFF，跳过无效字节
+        uint8_t byte;
+        while (ring_available(&usb_rx_ring) > 0) {
+            byte = usb_rx_ring.buffer[usb_rx_ring.read_idx % USB_RX_RING_SIZE];
+            if (byte == 0xFF) break;
+            ring_get(&usb_rx_ring, &byte, 1);
+        }
+
+        if (ring_available(&usb_rx_ring) < sizeof(RpyTypeDef)) break;
+
+        // 读取完整帧
+        ring_get(&usb_rx_ring, frame, sizeof(RpyTypeDef));
+        memcpy(&rpy_rx_data, frame, sizeof(rpy_rx_data));
+
+        switch (rpy_rx_data.ID) {
+            case CHASSIS_CTRL: {
+                trans_fdb_data.linear_x = (*(int32_t *)&rpy_rx_data.DATA[0] / 10000.0);
+                trans_fdb_data.linear_y = (*(int32_t *)&rpy_rx_data.DATA[4] / 10000.0);
+                trans_fdb_data.linear_z = (*(int32_t *)&rpy_rx_data.DATA[8] / 10000.0);
+                trans_fdb_data.angular_x = (*(int32_t *)&rpy_rx_data.DATA[12] / 10000.0);
+                trans_fdb_data.angular_y = (*(int32_t *)&rpy_rx_data.DATA[16] / 10000.0);
+                trans_fdb_data.angular_z = (*(int32_t *)&rpy_rx_data.DATA[20] / 10000.0);
+            } break;
+
+            case GIMBAL: {
+                trans_fdb_data.yaw = -(*(int32_t *)&rpy_rx_data.DATA[1] / 1000.0);
+                trans_fdb_data.pitch = (*(int32_t *)&rpy_rx_data.DATA[5] / 1000.0);
+                trans_fdb_data.roll = (*(int32_t *)&rpy_rx_data.DATA[9] / 1000.0);
+                trans_fdb_data.mode = (*(int32_t *)&rpy_rx_data.DATA[13] / 1000.0);
+                yaw_filtered = 0.1f * trans_fdb_data.yaw + 0.9f * yaw_filtered;
+                pitch_filtered = 0.1f * trans_fdb_data.pitch + 0.9f * pitch_filtered;
+                trans_fdb_data.yaw_filtered = yaw_filtered;
+                trans_fdb_data.pitch_filtered = pitch_filtered;
+            } break;
+
+            case POSE_CTRL: {
+                trans_fdb_data.pose = (*(uint8_t *)&rpy_rx_data.DATA[0]);
+                if (trans_fdb_data.pose == 3) {
+                    trans_fdb_data.chassis_power_limit = 150;
+                    trans_fdb_data.shooter_17mm_cooling_heat = 10 / 3;
+                } else if (trans_fdb_data.pose == 2) {
+                    trans_fdb_data.chassis_power_limit = 50;
+                    trans_fdb_data.shooter_17mm_cooling_heat = 10 / 3;
+                } else if (trans_fdb_data.pose == 1) {
+                    trans_fdb_data.chassis_power_limit = 50;
+                    trans_fdb_data.shooter_17mm_cooling_heat = 30;
+                }
+            } break;
+
+            case HEARTBEAT: {
+                trans_fdb_data.heartbeat = (*(uint8_t *)&rpy_rx_data.DATA[0]);
+                heart_dt = dwt_get_time_ms();
+            } break;
+        }
+
+        memset(&rpy_rx_data, 0, sizeof(rpy_rx_data));
+    }
 }
 
 // 提供获取 trans_fdb_data 数据的函数

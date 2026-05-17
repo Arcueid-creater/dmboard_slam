@@ -188,14 +188,9 @@ void Check_Rpy(RpyTypeDef *frame);
 void Send_to_pc(RpyTypeDef data_r);
 
 /**
-  * @brief 执行接收解析动作
+  * @brief 接受回调函数，由USB CDC中断回调调用，将数据写入环形缓冲区并解析完整帧
   */
-void Getdata();
-
-/**
-  * @brief 接受回调函数
-  */
-static void usb_input(uint8_t* Buf, uint32_t *Len);
+void process_usb_data(uint8_t* Buf, uint32_t *Len);
 
 /**
   * @brief   接收区清空标志位回馈
@@ -205,20 +200,6 @@ typedef enum
     trans_OK=1,   //执行清空操作
     trans_NO=0,  //不执行清空操作
 } trans_back_e;
-
-typedef enum {
-    RED = 1,
-    BLUE = 0,
-    UNKNOWN = -1
-}  TeamColor;            //本机器人颜色
-
-void judge_color();
-
-// 非静态函数，供其他文件调用
-void process_usb_data(uint8_t* Buf, uint32_t *Len);
-
-// 提供获取 trans_fdb 数据的函数
-struct trans_fdb_msg* get_trans_fdb(void);
 
 void trans_control_task();
 

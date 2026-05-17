@@ -45,7 +45,7 @@ void robot_init()
     trans_task_init();
     shoot_task_init();
     ins_task_init();
-    // LifterInit();
+    LifterInit();
     OS_task_init(); // 创建基础任务
 
     // 初始化完成,开启中断

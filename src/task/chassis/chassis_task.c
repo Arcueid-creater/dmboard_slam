@@ -224,6 +224,9 @@ void ChassisTask_Entry(void const * argument)
                     absolute_cal(&chassis_cmd, ins_data.yaw-chassis_fdb.spin_yaw_offset);
                     chassis_calc_moto_speed(&chassis_cmd, motor_ref);
                     break;
+                case CHASSIS_SLAM:
+                    chassis_calc_moto_speed(&chassis_cmd, motor_ref);
+                    break;
                 case CHASSIS_OPEN_LOOP:
                     chassis_calc_moto_speed(&chassis_cmd, motor_ref);
                     break;
