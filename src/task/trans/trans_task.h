@@ -9,17 +9,19 @@
 #ifndef TRANS_TASK_H
 #define TRANS_TASK_H
 
+#include <stdint.h>
 
 /* BCP通讯协议相关 */
 //TODO: 考虑不同帧长的情况
 #define FRAME_MAX_LEN 36        /* 通讯帧的最大长度 */
 #define FRAME_XYA_LEN 6         /* 速度控制方式数据长度 */
-#define FRAME_AUTO_LEN 22         /* 自瞄发送方式控制数据长度 */
-#define FRAME_RPY_LEN 25         /* 欧拉角rpy方式控制数据长度 */
+#define FRAME_AUTO_LEN 22       /* 自瞄发送方式控制数据长度 */
+#define FRAME_RPY_LEN 25        /* 欧拉角rpy方式控制数据长度 */
 #define FRAME_ODOM_LEN 36       /* 里程计控制方式数据长度 */
-#define FRAME_CTRL_LEN 24       /* 角/线速度控制方式数据长度 */
+#define FRAME_CTRL_LEN 24       /* 角/线速度方式控制数据长度 */
 #define FRAME_SHOOT_LEN 7       /* 发射机构数据长度 */
 #define FRAME_IMU_LEN 24        /* imu控制方式数据长度 */
+
 /* 目标地址表 */
 #define BROADCAST   0x00        /* 广播 */
 #define MAINFLOD    0x01        /* 上位机 */
@@ -32,13 +34,14 @@
 #define RADAR       0x08        /* 雷达站 */
 #define GATHER      0x09        /* 视觉采集台 */
 #define STANDARD    0x10        /* AI机器人/全自动步兵机器人 */
+
 /* 功能码表 */
 #define CHASSIS                 0x10        /* 速度方式控制 */
 #define CHASSIS_ODOM            0x11        /* 里程计方式控制 */
 #define CHASSIS_CTRL            0x12        /* 角/线速度方式控制 */
-#define POSE_CTRL               0x15        /* 姿态系统数据 */
 #define CHASSIS_IMU             0x13        /* 底盘imu数据 */
 #define GIMBAL                  0x20        /* 欧拉角rpy方式控制 */
+#define POSE_CTRL               0x15        /* 姿态系统数据 */
 #define GAME_STATUS             0x30        /* 比赛类型数据*/
 #define ROBOT_HP                0x31        /* 机器人血量数据 */
 #define ICRA_BUFF_DEBUFF_ZONE   0x32        /* 增益区数据 */
@@ -51,158 +54,113 @@
 #define DEV_ERROR               0xE0        /* 故障信息 */
 #define HEARTBEAT               0xF0        /* 心跳数据 */
 
-
 /**
-  * @brief  通讯帧结构体 （BCP通讯协议） 此为最大DATA长度的帧，用于接收中转
+  * @brief  通讯帧结构体（BCP通讯协议）——最大DATA长度的帧，用于接收中转
   */
-typedef  struct
+typedef struct
 {
-    uint8_t HEAD;                    /*! 帧头 */
-    uint8_t D_ADDR;                 /*! 目标地址 */
-    uint8_t ID;                     /*! 功能码 */
-    uint8_t LEN;                    /*! 数据长度 */
-    uint8_t DATA[FRAME_MAX_LEN];     /*! 数据内容 */
-    uint8_t SC;                     /*! 和校验 */
-    uint8_t AC;                     /*! 附加校验 */
+    uint8_t HEAD;                    /*!< 帧头 */
+    uint8_t D_ADDR;                  /*!< 目标地址 */
+    uint8_t ID;                      /*!< 功能码 */
+    uint8_t LEN;                     /*!< 数据长度 */
+    int8_t DATA[FRAME_MAX_LEN];      /*!< 数据内容 */
+    uint8_t SC;                      /*!< 和校验 */
+    uint8_t AC;                      /*!< 附加校验 */
 }__attribute__((packed)) BCPFrameTypeDef;
-
-/**
-  * @brief  自瞄发送结构体
-  */
-typedef  struct
-{
-    uint16_t head;                   /*! 帧头 */
-/*    float pitchAngleGet;          *//*! pitch轴角度 *//*
-    float yawAngleGet;              *//*! yaw轴角度 *//*
-    rt_uint8_t rotateDirection;        *//*! 旋转方向 1 *//*
-    float timeBais;                 *//*! 预测时间偏置 *//*
-    float compensateBais;           *//*! 弹道补偿偏置 *//*
-    rt_uint8_t gimbal_mode;         *//*! 云台模式 *//*
-    rt_uint32_t index;                 *//*! 帧序号 */
-    int8_t DATA[FRAME_AUTO_LEN];  /*! 数据内容 FRAME_AUTO_LEN=18 */
-    uint8_t index[4];
-}__attribute__((packed)) SendFrameTypeDef;
-
-/**
-  * @brief  速度方式控制通讯帧结构体
-  */
-typedef  struct
-{
-    uint8_t HEAD;                   /*! 帧头 */
-    uint8_t D_ADDR;                /*! 目标地址 */
-    uint8_t ID;                    /*! 功能码 */
-    uint8_t LEN;                   /*! 数据长度 */
-    int8_t DATA[FRAME_XYA_LEN];    /*! 数据内容 */
-    uint8_t SC;                    /*! 和校验 */
-    uint8_t AC;                    /*! 附加校验 */
-}__attribute__((packed)) XyaTypeDef;
 
 /**
   * @brief  欧拉角rpy方式控制通讯帧结构体
   */
-typedef  struct
+typedef struct
 {
-    uint8_t HEAD;                    /*! 帧头 */
-    uint8_t D_ADDR;                 /*! 目标地址 */
-    uint8_t ID;                     /*! 功能码 */
-    uint8_t LEN;                    /*! 数据长度 */
-    int8_t DATA[FRAME_RPY_LEN];    /*! 数据内容 */
-    uint8_t SC;                     /*! 和校验 */
-    uint8_t AC;                     /*! 附加校验 */
+    uint8_t HEAD;                    /*!< 帧头 */
+    uint8_t D_ADDR;                  /*!< 目标地址 */
+    uint8_t ID;                      /*!< 功能码 */
+    uint8_t LEN;                     /*!< 数据长度 */
+    int8_t DATA[FRAME_RPY_LEN];      /*!< 数据内容 */
+    uint8_t SC;                      /*!< 和校验 */
+    uint8_t AC;                      /*!< 附加校验 */
 }__attribute__((packed)) RpyTypeDef;
 
 /**
   * @brief  角/线速度方式控制通讯帧结构体
   */
-typedef  struct
+typedef struct
 {
-    uint8_t HEAD;                    /*! 帧头 */
-    uint8_t D_ADDR;                 /*! 目标地址 */
-    uint8_t ID;                     /*! 功能码 */
-    uint8_t LEN;                    /*! 数据长度 */
-    int8_t DATA[FRAME_CTRL_LEN];    /*! 数据内容 */
-    uint8_t SC;                     /*! 和校验 */
-    uint8_t AC;                     /*! 附加校验 */
+    uint8_t HEAD;                    /*!< 帧头 */
+    uint8_t D_ADDR;                  /*!< 目标地址 */
+    uint8_t ID;                      /*!< 功能码 */
+    uint8_t LEN;                     /*!< 数据长度 */
+    int8_t DATA[FRAME_CTRL_LEN];     /*!< 数据内容 */
+    uint8_t SC;                      /*!< 和校验 */
+    uint8_t AC;                      /*!< 附加校验 */
 }__attribute__((packed)) XyzTypeDef;
-
-/**
-  * @brief  里程计方式控制通讯帧结构体
-  */
-typedef  struct
-{
-    uint8_t HEAD;                    /*! 帧头 */
-    uint8_t D_ADDR;                 /*! 目标地址 */
-    uint8_t ID;                     /*! 功能码 */
-    uint8_t LEN;                    /*! 数据长度 */
-    int8_t DATA[FRAME_ODOM_LEN];    /*! 数据内容 */
-    uint8_t SC;                     /*! 和校验 */
-    uint8_t AC;                     /*! 附加校验 */
-}__attribute__((packed)) OdomTypeDef;
 
 /**
   * @brief  imu方式控制通讯帧结构体
   */
-typedef  struct
+typedef struct
 {
-    uint8_t HEAD;                    /*! 帧头 0XFF */
-    uint8_t D_ADDR;                 /*! 目标地址 0X01 */
-    uint8_t ID;                     /*! 功能码 0X13 */
-    uint8_t LEN;                    /*! 数据长度 40 */
-    int8_t DATA[FRAME_IMU_LEN];    /*! 数据内容 */
-    uint8_t SC;                     /*! 和校验 */
-    uint8_t AC;                     /*! 附加校验 */
+    uint8_t HEAD;                    /*!< 帧头 0XFF */
+    uint8_t D_ADDR;                  /*!< 目标地址 0X01 */
+    uint8_t ID;                      /*!< 功能码 0X13 */
+    uint8_t LEN;                     /*!< 数据长度 40 */
+    int8_t DATA[FRAME_IMU_LEN];      /*!< 数据内容 */
+    uint8_t SC;                      /*!< 和校验 */
+    uint8_t AC;                      /*!< 附加校验 */
 }__attribute__((packed)) ImuTypeDef;
 
 /**
   * @brief  发射机构数据通讯帧结构体
   */
-typedef  struct
+typedef struct
 {
-    uint8_t HEAD;                    /*! 帧头 */
-    uint8_t D_ADDR;                 /*! 目标地址 */
-    uint8_t ID;                     /*! 功能码 */
-    uint8_t LEN;                    /*! 数据长度 */
-    int8_t DATA[FRAME_SHOOT_LEN];    /*! 数据内容 */
-    uint8_t SC;                     /*! 和校验 */
-    uint8_t AC;                     /*! 附加校验 */
+    uint8_t HEAD;                    /*!< 帧头 */
+    uint8_t D_ADDR;                  /*!< 目标地址 */
+    uint8_t ID;                      /*!< 功能码 */
+    uint8_t LEN;                     /*!< 数据长度 */
+    int8_t DATA[FRAME_SHOOT_LEN];    /*!< 数据内容 */
+    uint8_t SC;                      /*!< 和校验 */
+    uint8_t AC;                      /*!< 附加校验 */
 }__attribute__((packed)) ShootTypeDef;
-
-/**
-  * @brief CDC上下位机通信线程入口函数
-  */
-void transmission_task_entry(void* argument);
-
-/**
-  * @brief 拆分并填充rpy欧拉角数据
-  */
-void pack_Rpy(RpyTypeDef *frame, float yaw, float pitch, float roll);
-
-/**
-  * @brief 和校验，附加校验
-  */
-void Check_Rpy(RpyTypeDef *frame);
-
-/**
-  * @brief 执行发送动作
-  */
-void Send_to_pc(RpyTypeDef data_r);
-
-/**
-  * @brief 接受回调函数，由USB CDC中断回调调用，将数据写入环形缓冲区并解析完整帧
-  */
-void process_usb_data(uint8_t* Buf, uint32_t *Len);
 
 /**
   * @brief   接收区清空标志位回馈
   */
 typedef enum
 {
-    trans_OK=1,   //执行清空操作
-    trans_NO=0,  //不执行清空操作
+    trans_OK  = 1,
+    trans_NO  = 0,
 } trans_back_e;
 
-void trans_control_task();
+typedef enum {
+    RED = 1,
+    BLUE = 0,
+    UNKNOWN = -1
+} TeamColor;
 
-void trans_task_init();
+/**
+  * @brief 拆分并填充rpy欧拉角数据
+  */
+void pack_Rpy(RpyTypeDef *frame, float yaw, float pitch, float roll, int team_color);
 
-#endif //HNU_RM_DOWN_TRANS_TASK_H
+/**
+  * @brief 和校验，附加校验
+  */
+void Check_Rpy(RpyTypeDef *frame);
+
+/* USB接收回调（由usbd_cdc_if.c在中断中调用） */
+void process_usb_data(uint8_t* Buf, uint32_t *Len);
+
+/* 通用发送函数：将完整BCP帧加入发送队列 */
+void send_custom_data(uint8_t *data, uint16_t length);
+
+/* 提供获取 trans_fdb 数据的函数 */
+struct trans_fdb_msg;
+struct trans_fdb_msg* get_trans_fdb(void);
+
+/* 任务入口函数 */
+void trans_control_task(void);
+void trans_task_init(void);
+
+#endif /* TRANS_TASK_H */

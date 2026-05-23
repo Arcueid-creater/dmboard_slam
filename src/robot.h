@@ -156,6 +156,7 @@ typedef enum
     LIFTER_CLIMB,
     LIFTER_BACK_UP,
     LIFTER_DOGHOLE,
+    LIFTER_JUMP,
 } lifter_mode_e ;
 
 struct lifter_cmd_msg
@@ -248,8 +249,6 @@ struct trans_fdb_msg
     float yaw;
     float pitch;
     float roll;
-    float yaw_filtered;
-    float pitch_filtered;
     uint8_t heartbeat;
     float linear_x;
     float linear_y;

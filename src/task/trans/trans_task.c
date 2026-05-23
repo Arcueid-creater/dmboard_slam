@@ -1,65 +1,62 @@
 #include <stdio.h>
+#include <string.h>
 #include "cmsis_os.h"
+#include "FreeRTOS.h"
+#include "queue.h"
 #include "rm_module.h"
 #include "usbd_cdc_if.h"
+#include "usbd_cdc.h"
 #include "trans_task.h"
 #include "gimbal_task.h"
 
+#define HEART_BEAT 500 // ms
 
-#define HEART_BEAT 500 //ms
-#define USB_RX_RING_SIZE 512  // USB接收环形缓冲区大小
+/* ==================== USB队列传输 ==================== */
+#define USB_RX_MSG_LEN          512
+#define USB_RX_MSG_COUNT        8
 
-/*------------------------------USB接收环形缓冲区--------------------------------- */
+#define USB_TX_MSG_COUNT        8
+#define USB_TX_MSG_MAX          512
+
 typedef struct {
-    uint8_t buffer[USB_RX_RING_SIZE];
-    uint32_t write_idx;
-    uint32_t read_idx;
-} ring_buffer_t;
+    uint16_t len;
+    uint8_t data[USB_RX_MSG_LEN];
+} usb_rx_msg_t;
 
-static ring_buffer_t usb_rx_ring;
+typedef struct {
+    uint16_t len;
+    uint8_t data[USB_TX_MSG_MAX];
+} usb_tx_msg_t;
 
-static void ring_put_force(ring_buffer_t *rb, const uint8_t *data, uint32_t len) {
-    for (uint32_t i = 0; i < len; i++) {
-        rb->buffer[rb->write_idx % USB_RX_RING_SIZE] = data[i];
-        rb->write_idx++;
-        if (rb->write_idx - rb->read_idx > USB_RX_RING_SIZE) {
-            rb->read_idx = rb->write_idx - USB_RX_RING_SIZE;
-        }
-    }
-}
+static QueueHandle_t usb_rx_queue = NULL;
+static usb_rx_msg_t usb_rx_msg_pool[USB_RX_MSG_COUNT];
+static uint8_t usb_rx_msg_idx = 0;
 
-static uint32_t ring_available(ring_buffer_t *rb) {
-    return rb->write_idx - rb->read_idx;
-}
+static QueueHandle_t usb_tx_queue = NULL;
+static QueueHandle_t usb_tx_free_queue = NULL;
+static usb_tx_msg_t usb_tx_msg_pool[USB_TX_MSG_COUNT];
+static usb_tx_msg_t *usb_tx_inflight = NULL;
 
-static uint32_t ring_get(ring_buffer_t *rb, uint8_t *data, uint32_t len) {
-    uint32_t avail = ring_available(rb);
-    if (len > avail) return 0;
-    for (uint32_t i = 0; i < len; i++) {
-        data[i] = rb->buffer[rb->read_idx % USB_RX_RING_SIZE];
-        rb->read_idx++;
-    }
-    return len;
-}
+static void process_usb_bytes(uint8_t* Buf, uint16_t Len);
+static void usb_tx_pump(void);
 
-/*------------------------------传输数据相关 --------------------------------- */
+extern USBD_HandleTypeDef hUsbDeviceHS;
 
-extern struct referee_fdb_msg referee_fdb;
+/* ==================== BCP接收状态机 ==================== */
+#define BCP_FRAME_MAX  (6 + FRAME_MAX_LEN)  /* HEAD+D_ADDR+ID+LEN + DATA[max] + SC+AC = 42 */
 
-RpyTypeDef rpy_tx_data={
-        .HEAD = 0XFF,
-        .D_ADDR = MAINFLOD,
-        .ID = GIMBAL,
-        .LEN = FRAME_RPY_LEN,
-        .DATA={0},
-        .SC = 0,
-        .AC = 0,
-};
-RpyTypeDef rpy_rx_data; //接收解析结构体
-static uint32_t heart_dt;
-/* ---------------------------------usb虚拟串口数据相关 --------------------------------- */
+static uint8_t frame_buffer[BCP_FRAME_MAX];
+static uint32_t frame_index = 0;
+static uint8_t bcp_data_len = 0;    /* 帧中 LEN 字段的值，即 DATA 区的字节数 */
+static uint8_t bcp_total_len = 0;   /* 完整帧的预期总字节数 = 6 + LEN */
 
-/* -------------------------------- 线程间通讯话题相关 ------------------------------- */
+static enum {
+    BCP_WAIT_FOR_HEADER,
+    BCP_RECEIVING_HEADER,
+    BCP_RECEIVING_DATA
+} bcp_state = BCP_WAIT_FOR_HEADER;
+
+/* ==================== 线程间通讯话题相关 ==================== */
 // 发布
 MCN_DECLARE(transmission_fdb_topic);
 static struct trans_fdb_msg trans_fdb_data;
@@ -80,122 +77,93 @@ static struct gimbal_fdb_msg gimbal_fdb;
 MCN_DECLARE(gimbal_ins_topic);
 static McnNode_t gimbal_ins_node;
 static struct dm_imu_t gim_ins;
+
+extern struct referee_fdb_msg referee_fdb;
+
 static void trans_pub_push(void);
 static void trans_sub_init(void);
 static void trans_sub_pull(void);
-float yaw_obs=0;
 
-/* --------------------------------- 通讯线程入口 --------------------------------- */
+/* ==================== 全局变量 ==================== */
+float yaw_obs = 0;
+static uint32_t heart_dt;
 static float trans_dt;
 static float trans_start;
-static float yaw_filtered=0;
-static float pitch_filtered=0;
+TeamColor team_color = UNKNOWN;
 
-void trans_task_init(){
-    trans_sub_init();
-}
+extern auto_relative_angle_status_e auto_relative_angle_status;
 
-void trans_control(){
+/* ==================== 发送函数 ==================== */
 
-    trans_start = dwt_get_time_ms();
-/*--------------------------------------------------具体需要发送的数据--------------------------------- */
-    if((dwt_get_time_ms()-heart_dt)>=HEART_BEAT)
-    {
-        heart_dt=dwt_get_time_ms();
-    }
-    Send_to_pc(rpy_tx_data);
-    yaw_obs=gimbal_fdb.yaw_offset_angle - gim_ins.yaw;
-
-/*--------------------------------------------------具体需要发送的数据---------------------------------*/
-    /* 用于调试监测线程调度使用 */
-    trans_dt = dwt_get_time_ms() - trans_start;
-    if (trans_dt > 1)
-        LOGINFO("Transmission Task is being DELAY! dt = [%f]\r\n", &trans_dt);
-
-}
-
-void trans_control_task(){
-    /*订阅数据更新*/
-    trans_sub_pull();
-    trans_control();
-    /* 发布数据更新 */
-    trans_pub_push();
-}
-
-void Send_to_pc(RpyTypeDef data_r)
+/**
+ * @brief 将已构建好的BCP帧加入发送队列
+ */
+static void send_packet(uint8_t *data, uint16_t length)
 {
-    // ==========================================
-    // 1. 发送云台姿态 (1000Hz)
-    // ==========================================
-    pack_Rpy(&data_r, (gimbal_fdb.yaw_offset_angle - ins.yaw), ins.pitch, ins.roll);
-    Check_Rpy(&data_r);
-    CDC_Transmit_HS((uint8_t*)&data_r, sizeof(data_r));
+    if (usb_tx_queue == NULL || data == NULL)
+        return;
 
-    // ==========================================
-    // 引入静态分频计数器，降低低频数据的发送速率
-    // 1000Hz / 100 = 10Hz
-    // ==========================================
-    static uint16_t send_cnt = 0;
-    send_cnt++;
-    if (send_cnt >= 100)
-    {
-        send_cnt = 0;
+    if (length > USB_TX_MSG_MAX)
+        length = USB_TX_MSG_MAX;
 
-        // ==========================================
-        // 2. 发送哨兵姿态数据 (降频至 10Hz)
-        // ==========================================
-        uint8_t pose_buf[7] = {0};
-        pose_buf[0] = 0xFF;
-        pose_buf[1] = 0x01;
-        pose_buf[2] = 0x06;
-        pose_buf[3] = 0x01;
+    if (usb_tx_free_queue == NULL)
+        return;
 
-        uint8_t sentry_pose = (referee_fdb.sentry_info.sentry_info_2 >> 12) & 0x03;
-        pose_buf[4] = sentry_pose;
+    usb_tx_msg_t *msg = NULL;
+    if (xQueueReceive(usb_tx_free_queue, &msg, 0) != pdPASS || msg == NULL)
+        return;
 
-        uint8_t sum_p = 0, add_p = 0;
-        for (int i = 0; i < 5; i++) {
-            sum_p += pose_buf[i];
-            add_p += sum_p;
-        }
-        pose_buf[5] = sum_p;
-        pose_buf[6] = add_p;
+    memcpy(msg->data, data, length);
+    msg->len = length;
 
-        CDC_Transmit_HS(pose_buf, 7);
-
-        // ==========================================
-        // 3. 发送机器人血量数据 (降频至 10Hz)
-        // ==========================================
-        uint8_t hp_buf[38] = {0};
-        hp_buf[0] = 0xFF;
-        hp_buf[1] = 0x01;
-        hp_buf[2] = 0x31;
-        hp_buf[3] = 32;
-
-        uint16_t red_hp = referee_fdb.game_robot_HP.red_7_robot_HP;
-        uint16_t blue_hp = referee_fdb.game_robot_HP.blue_7_robot_HP;
-
-        hp_buf[14] = red_hp & 0xFF;
-        hp_buf[15] = (red_hp >> 8) & 0xFF;
-
-        hp_buf[30] = blue_hp & 0xFF;
-        hp_buf[31] = (blue_hp >> 8) & 0xFF;
-
-        uint8_t sum_h = 0, add_h = 0;
-        for (int i = 0; i < 36; i++) {
-            sum_h += hp_buf[i];
-            add_h += sum_h;
-        }
-        hp_buf[36] = sum_h;
-        hp_buf[37] = add_h;
-
-        CDC_Transmit_HS(hp_buf, 38);
+    if (xQueueSend(usb_tx_queue, &msg, 0) != pdPASS) {
+        (void)xQueueSend(usb_tx_free_queue, &msg, 0);
     }
 }
 
-void pack_Rpy(RpyTypeDef *frame, float yaw, float pitch, float roll)
+/**
+ * @brief 发送队列泵：当前帧发送完成后取下一帧通过CDC_Transmit_HS发送
+ */
+static void usb_tx_pump(void)
 {
-    int8_t rpy_tx_buffer[FRAME_RPY_LEN] = {0} ;
+    if (usb_tx_queue == NULL)
+        return;
+
+    USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceHS.pClassData;
+    if (hcdc == NULL)
+        return;
+
+    if (hcdc->TxState != 0U)
+        return;
+
+    if (usb_tx_inflight != NULL) {
+        (void)xQueueSend(usb_tx_free_queue, &usb_tx_inflight, 0);
+        usb_tx_inflight = NULL;
+    }
+
+    if (usb_tx_inflight == NULL) {
+        (void)xQueueReceive(usb_tx_queue, &usb_tx_inflight, 0);
+    }
+
+    if (usb_tx_inflight == NULL)
+        return;
+
+    (void)CDC_Transmit_HS(usb_tx_inflight->data, usb_tx_inflight->len);
+}
+
+/**
+ * @brief 通用发送接口（外部可调用）：将完整BCP帧加入发送队列
+ */
+void send_custom_data(uint8_t *data, uint16_t length)
+{
+    send_packet(data, length);
+}
+
+/* ==================== BCP数据打包函数 ==================== */
+
+void pack_Rpy(RpyTypeDef *frame, float yaw, float pitch, float roll, int team_color)
+{
+    int8_t rpy_tx_buffer[FRAME_RPY_LEN] = {0};
     int32_t rpy_data = 0;
     uint32_t *gimbal_rpy = (uint32_t *)&rpy_data;
 
@@ -215,9 +183,13 @@ void pack_Rpy(RpyTypeDef *frame, float yaw, float pitch, float roll)
     rpy_tx_buffer[10] = *gimbal_rpy >> 8;
     rpy_tx_buffer[11] = *gimbal_rpy >> 16;
     rpy_tx_buffer[12] = *gimbal_rpy >> 24;
+    rpy_data = team_color * 1000;
+    rpy_tx_buffer[13] = *gimbal_rpy;
+    rpy_tx_buffer[14] = *gimbal_rpy >> 8;
+    rpy_tx_buffer[15] = *gimbal_rpy >> 16;
+    rpy_tx_buffer[16] = *gimbal_rpy >> 24;
 
-    memcpy(&frame->DATA[0], rpy_tx_buffer, 13);
-
+    memcpy(&frame->DATA[0], rpy_tx_buffer, 17);
     frame->LEN = FRAME_RPY_LEN;
 }
 
@@ -232,8 +204,7 @@ void Check_Rpy(RpyTypeDef *frame)
     sum += frame->LEN;
     add += sum;
 
-    for (int i = 0; i < frame->LEN; i++)
-    {
+    for (int i = 0; i < frame->LEN; i++) {
         sum += frame->DATA[i];
         add += sum;
     }
@@ -242,116 +213,315 @@ void Check_Rpy(RpyTypeDef *frame)
     frame->AC = add & 0xFF;
 }
 
+/* ==================== 接收函数 ==================== */
 
-
+/**
+ * @brief USB接收回调（在中断上下文中调用，将原始数据入队）
+ */
 void process_usb_data(uint8_t* Buf, uint32_t *Len)
 {
-    // 将收到的数据放入环形缓冲区
-    ring_put_force(&usb_rx_ring, Buf, *Len);
+    if (usb_rx_queue == NULL || Buf == NULL || Len == NULL || *Len == 0)
+        return;
 
-    uint8_t frame[sizeof(RpyTypeDef)];
+    uint32_t in_len = *Len;
+    if (in_len > USB_RX_MSG_LEN)
+        in_len = USB_RX_MSG_LEN;
 
-    // 循环提取所有完整帧
-    while (ring_available(&usb_rx_ring) >= sizeof(RpyTypeDef)) {
-        // 查找帧头 0xFF，跳过无效字节
-        uint8_t byte;
-        while (ring_available(&usb_rx_ring) > 0) {
-            byte = usb_rx_ring.buffer[usb_rx_ring.read_idx % USB_RX_RING_SIZE];
-            if (byte == 0xFF) break;
-            ring_get(&usb_rx_ring, &byte, 1);
-        }
+    usb_rx_msg_t *msg = &usb_rx_msg_pool[usb_rx_msg_idx];
+    msg->len = (uint16_t)in_len;
+    memcpy(msg->data, Buf, in_len);
 
-        if (ring_available(&usb_rx_ring) < sizeof(RpyTypeDef)) break;
+    BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+    if (xQueueSendFromISR(usb_rx_queue, &msg, &xHigherPriorityTaskWoken) == pdPASS) {
+        usb_rx_msg_idx = (usb_rx_msg_idx + 1) % USB_RX_MSG_COUNT;
+    }
+    portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+}
 
-        // 读取完整帧
-        ring_get(&usb_rx_ring, frame, sizeof(RpyTypeDef));
-        memcpy(&rpy_rx_data, frame, sizeof(rpy_rx_data));
+/**
+ * @brief 在任务上下文中解析接收到的BCP帧数据
+ *
+ * BCP 帧格式（每帧总长 = 6 + LEN，各帧 LEN 不同）：
+ *   HEAD(1) | D_ADDR(1) | ID(1) | LEN(1) | DATA[LEN] | SC(1) | AC(1)
+ *
+ * 解析流程：
+ *   1. WAIT_FOR_HEADER:    等待 0xFF 帧头
+ *   2. BCP_RECEIVING_HEADER: 收齐 D_ADDR / ID / LEN，算出预期总长
+ *   3. BCP_RECEIVING_DATA:   根据 LEN 收取剩余字节，收齐后按 ID 分发
+ */
+static void process_usb_bytes(uint8_t* Buf, uint16_t Len)
+{
+    for (uint16_t i = 0; i < Len; i++) {
+        uint8_t current_byte = Buf[i];
 
-        switch (rpy_rx_data.ID) {
-            case CHASSIS_CTRL: {
-                trans_fdb_data.linear_x = (*(int32_t *)&rpy_rx_data.DATA[0] / 10000.0);
-                trans_fdb_data.linear_y = (*(int32_t *)&rpy_rx_data.DATA[4] / 10000.0);
-                trans_fdb_data.linear_z = (*(int32_t *)&rpy_rx_data.DATA[8] / 10000.0);
-                trans_fdb_data.angular_x = (*(int32_t *)&rpy_rx_data.DATA[12] / 10000.0);
-                trans_fdb_data.angular_y = (*(int32_t *)&rpy_rx_data.DATA[16] / 10000.0);
-                trans_fdb_data.angular_z = (*(int32_t *)&rpy_rx_data.DATA[20] / 10000.0);
-            } break;
-
-            case GIMBAL: {
-                trans_fdb_data.yaw = -(*(int32_t *)&rpy_rx_data.DATA[1] / 1000.0);
-                trans_fdb_data.pitch = (*(int32_t *)&rpy_rx_data.DATA[5] / 1000.0);
-                trans_fdb_data.roll = (*(int32_t *)&rpy_rx_data.DATA[9] / 1000.0);
-                trans_fdb_data.mode = (*(int32_t *)&rpy_rx_data.DATA[13] / 1000.0);
-                yaw_filtered = 0.1f * trans_fdb_data.yaw + 0.9f * yaw_filtered;
-                pitch_filtered = 0.1f * trans_fdb_data.pitch + 0.9f * pitch_filtered;
-                trans_fdb_data.yaw_filtered = yaw_filtered;
-                trans_fdb_data.pitch_filtered = pitch_filtered;
-            } break;
-
-            case POSE_CTRL: {
-                trans_fdb_data.pose = (*(uint8_t *)&rpy_rx_data.DATA[0]);
-                if (trans_fdb_data.pose == 3) {
-                    trans_fdb_data.chassis_power_limit = 150;
-                    trans_fdb_data.shooter_17mm_cooling_heat = 10 / 3;
-                } else if (trans_fdb_data.pose == 2) {
-                    trans_fdb_data.chassis_power_limit = 50;
-                    trans_fdb_data.shooter_17mm_cooling_heat = 10 / 3;
-                } else if (trans_fdb_data.pose == 1) {
-                    trans_fdb_data.chassis_power_limit = 50;
-                    trans_fdb_data.shooter_17mm_cooling_heat = 30;
+        switch (bcp_state) {
+            case BCP_WAIT_FOR_HEADER:
+                if (current_byte == 0xFF) {
+                    frame_index = 0;
+                    frame_buffer[frame_index++] = current_byte;
+                    bcp_state = BCP_RECEIVING_HEADER;
                 }
-            } break;
+                break;
 
-            case HEARTBEAT: {
-                trans_fdb_data.heartbeat = (*(uint8_t *)&rpy_rx_data.DATA[0]);
-                heart_dt = dwt_get_time_ms();
-            } break;
+            case BCP_RECEIVING_HEADER:
+                frame_buffer[frame_index++] = current_byte;
+                /* 收齐 4 字节头部：HEAD + D_ADDR + ID + LEN */
+                if (frame_index >= 4) {
+                    bcp_data_len = frame_buffer[3];          /* LEN 字段 */
+                    bcp_total_len = 6 + bcp_data_len;        /* 完整帧总字节数 */
+
+                    /* 防御：LEN 超过最大值则丢弃此帧 */
+                    if (bcp_data_len > FRAME_MAX_LEN || bcp_total_len > BCP_FRAME_MAX) {
+                        bcp_state = BCP_WAIT_FOR_HEADER;
+                        break;
+                    }
+                    bcp_state = BCP_RECEIVING_DATA;
+                }
+                break;
+
+            case BCP_RECEIVING_DATA:
+                frame_buffer[frame_index++] = current_byte;
+
+                if (frame_index >= bcp_total_len) {
+                    /* ---- 帧收齐，按 ID 分发 ---- */
+                    uint8_t id  = frame_buffer[2];
+                    uint8_t len = frame_buffer[3];
+                    uint8_t *data = &frame_buffer[4];        /* DATA 起始位置（偏移4） */
+
+                    switch (id) {
+                        case CHASSIS_CTRL: {
+                            if (len >= 24) {
+                                trans_fdb_data.linear_x = (*(int32_t *)&data[0] / 10000.0f);
+                                trans_fdb_data.linear_y = (*(int32_t *)&data[4] / 10000.0f);
+                                trans_fdb_data.linear_z = (*(int32_t *)&data[8] / 10000.0f);
+                                trans_fdb_data.angular_x = (*(int32_t *)&data[12] / 10000.0f);
+                                trans_fdb_data.angular_y = (*(int32_t *)&data[16] / 10000.0f);
+                                trans_fdb_data.angular_z = (*(int32_t *)&data[20] / 10000.0f);
+                            }
+                        } break;
+
+                        case GIMBAL: {
+                            if (len >= 17) {
+                                trans_fdb_data.yaw = -(*(int32_t *)&data[1] / 1000.0f);
+                                trans_fdb_data.pitch = (*(int32_t *)&data[5] / 1000.0f);
+                                trans_fdb_data.roll = (*(int32_t *)&data[9] / 1000.0f);
+                                trans_fdb_data.mode = (*(int32_t *)&data[13] / 1000.0f);
+                            }
+                        } break;
+
+                        case POSE_CTRL: {
+                            if (len >= 1) {
+                                trans_fdb_data.pose = data[0];
+                                if (trans_fdb_data.pose == 3) {
+                                    trans_fdb_data.chassis_power_limit = 150;
+                                    trans_fdb_data.shooter_17mm_cooling_heat = 10.0f / 3.0f;
+                                } else if (trans_fdb_data.pose == 2) {
+                                    trans_fdb_data.chassis_power_limit = 50;
+                                    trans_fdb_data.shooter_17mm_cooling_heat = 10.0f / 3.0f;
+                                } else if (trans_fdb_data.pose == 1) {
+                                    trans_fdb_data.chassis_power_limit = 50;
+                                    trans_fdb_data.shooter_17mm_cooling_heat = 30;
+                                }
+                            }
+                        } break;
+
+                        case HEARTBEAT: {
+                            if (len >= 1) {
+                                trans_fdb_data.heartbeat = data[0];
+                                heart_dt = dwt_get_time_ms();
+                            }
+                        } break;
+
+                        default:
+                            break;
+                    }
+
+                    /* 重置状态机，准备接收下一帧 */
+                    memset(frame_buffer, 0, sizeof(frame_buffer));
+                    bcp_state = BCP_WAIT_FOR_HEADER;
+                }
+                break;
         }
-
-        memset(&rpy_rx_data, 0, sizeof(rpy_rx_data));
     }
 }
 
-// 提供获取 trans_fdb_data 数据的函数
+/* ==================== 发布订阅 ==================== */
+
+static void trans_pub_push(void)
+{
+    mcn_publish(MCN_HUB(transmission_fdb_topic), &trans_fdb_data);
+}
+
+static void trans_sub_init(void)
+{
+    ins_topic_node = mcn_subscribe(MCN_HUB(ins_topic), NULL, NULL);
+    chassis_cmd_node = mcn_subscribe(MCN_HUB(chassis_cmd), NULL, NULL);
+    gimbal_cmd_node = mcn_subscribe(MCN_HUB(gimbal_cmd), NULL, NULL);
+    gimbal_fdb_node = mcn_subscribe(MCN_HUB(gimbal_fdb_topic), NULL, NULL);
+    gimbal_ins_node = mcn_subscribe(MCN_HUB(gimbal_ins_topic), NULL, NULL);
+}
+
+static void trans_sub_pull(void)
+{
+    if (mcn_poll(ins_topic_node))
+        mcn_copy(MCN_HUB(ins_topic), ins_topic_node, &ins);
+
+    if (mcn_poll(chassis_cmd_node))
+        mcn_copy(MCN_HUB(chassis_cmd), chassis_cmd_node, &chass_cmd);
+
+    if (mcn_poll(gimbal_cmd_node))
+        mcn_copy(MCN_HUB(gimbal_cmd), gimbal_cmd_node, &gimbal_cmd);
+
+    if (mcn_poll(gimbal_fdb_node))
+        mcn_copy(MCN_HUB(gimbal_fdb_topic), gimbal_fdb_node, &gimbal_fdb);
+
+    if (mcn_poll(gimbal_ins_node))
+        mcn_copy(MCN_HUB(gimbal_ins_topic), gimbal_ins_node, &gim_ins);
+}
+
+/* ==================== 任务函数 ==================== */
+
 struct trans_fdb_msg* get_trans_fdb(void)
 {
     return &trans_fdb_data;
 }
 
-/******************************************************消息订阅*************************************************************************/
-void trans_pub_push(){
-    // data_content my_data = ;
-    mcn_publish(MCN_HUB(transmission_fdb_topic), &trans_fdb_data);
+void trans_task_init(void)
+{
+    memset(&trans_fdb_data, 0, sizeof(trans_fdb_data));
+    bcp_state = BCP_WAIT_FOR_HEADER;
+    frame_index = 0;
+    bcp_data_len = 0;
+    bcp_total_len = 0;
+
+    if (usb_rx_queue == NULL) {
+        usb_rx_queue = xQueueCreate(USB_RX_MSG_COUNT, sizeof(usb_rx_msg_t *));
+    }
+
+    if (usb_tx_queue == NULL) {
+        usb_tx_queue = xQueueCreate(USB_TX_MSG_COUNT, sizeof(usb_tx_msg_t *));
+    }
+
+    if (usb_tx_free_queue == NULL) {
+        usb_tx_free_queue = xQueueCreate(USB_TX_MSG_COUNT, sizeof(usb_tx_msg_t *));
+        if (usb_tx_free_queue != NULL) {
+            for (uint32_t i = 0; i < USB_TX_MSG_COUNT; i++) {
+                usb_tx_msg_t *p = &usb_tx_msg_pool[i];
+                (void)xQueueSend(usb_tx_free_queue, &p, 0);
+            }
+        }
+    }
+
+    trans_sub_init();
+    heart_dt = dwt_get_time_ms();
 }
 
-void trans_sub_init(){
-    ins_topic_node = mcn_subscribe(MCN_HUB(ins_topic), NULL, NULL);
-    chassis_cmd_node = mcn_subscribe(MCN_HUB(chassis_cmd), NULL, NULL);
-    gimbal_cmd_node = mcn_subscribe(MCN_HUB(gimbal_cmd), NULL, NULL);
-    gimbal_fdb_node = mcn_subscribe(MCN_HUB(gimbal_fdb_topic), NULL, NULL);
-    gimbal_ins_node =mcn_subscribe(MCN_HUB(gimbal_ins_topic), NULL, NULL);
-}
+void trans_control_task(void)
+{
+    trans_start = dwt_get_time_ms();
 
-void trans_sub_pull(){
+    trans_sub_pull();
 
-    if (mcn_poll(ins_topic_node))
-    {
-        mcn_copy(MCN_HUB(ins_topic), ins_topic_node, &ins);
+    // 处理接收队列中的所有消息
+    usb_rx_msg_t *msg = NULL;
+    while (xQueueReceive(usb_rx_queue, &msg, 0) == pdPASS) {
+        if (msg != NULL && msg->len > 0) {
+            process_usb_bytes(msg->data, msg->len);
+        }
     }
-    if (mcn_poll(chassis_cmd_node))
-    {
-        mcn_copy(MCN_HUB(chassis_cmd), chassis_cmd_node, &chass_cmd);
+
+    // 发送队列泵：在前一帧发送完成后驱动下一帧
+    usb_tx_pump();
+
+    // 心跳检测
+    if ((dwt_get_time_ms() - heart_dt) >= HEART_BEAT) {
+        heart_dt = dwt_get_time_ms();
     }
-    if (mcn_poll(gimbal_cmd_node))
+
+    // ==========================================
+    // 1. 发送云台姿态 (原样保持，高频 1000Hz 发送)
+    // ==========================================
     {
-        mcn_copy(MCN_HUB(gimbal_cmd), gimbal_cmd_node, &gimbal_cmd);
+        RpyTypeDef rpy_tx;
+        rpy_tx.HEAD = 0xFF;
+        rpy_tx.D_ADDR = MAINFLOD;
+        rpy_tx.ID = GIMBAL;
+
+        pack_Rpy(&rpy_tx,
+                 gimbal_fdb.yaw_offset_angle - gim_ins.yaw,
+                 ins.pitch,
+                 0.0f,
+                 team_color);
+        Check_Rpy(&rpy_tx);
+        send_packet((uint8_t *)&rpy_tx, sizeof(rpy_tx));
     }
-    if (mcn_poll(gimbal_fdb_node))
+
+    // ==========================================
+    // 2. 降频数据 (1000Hz / 100 = 10Hz)
+    // ==========================================
     {
-        mcn_copy(MCN_HUB(gimbal_fdb_topic), gimbal_fdb_node, &gimbal_fdb);
+        static uint16_t send_cnt = 0;
+        send_cnt++;
+        if (send_cnt >= 100) {
+            send_cnt = 0;
+
+            // 2.1 哨兵姿态数据
+            {
+                uint8_t pose_buf[7] = {0};
+                pose_buf[0] = 0xFF;
+                pose_buf[1] = 0x01;
+                pose_buf[2] = 0x06;
+                pose_buf[3] = 0x01;
+
+                uint8_t sentry_pose = (referee_fdb.sentry_info.sentry_info_2 >> 12) & 0x03;
+                pose_buf[4] = sentry_pose;
+
+                uint8_t sum_p = 0, add_p = 0;
+                for (int i = 0; i < 5; i++) {
+                    sum_p += pose_buf[i];
+                    add_p += sum_p;
+                }
+                pose_buf[5] = sum_p;
+                pose_buf[6] = add_p;
+
+                send_packet(pose_buf, 7);
+            }
+
+            // 2.2 机器人血量数据
+            {
+                uint8_t hp_buf[38] = {0};
+                hp_buf[0] = 0xFF;
+                hp_buf[1] = 0x01;
+                hp_buf[2] = ROBOT_HP;
+                hp_buf[3] = 32;
+
+                uint16_t red_hp = referee_fdb.game_robot_HP.red_7_robot_HP;
+                uint16_t blue_hp = referee_fdb.game_robot_HP.blue_7_robot_HP;
+
+                hp_buf[14] = red_hp & 0xFF;
+                hp_buf[15] = (red_hp >> 8) & 0xFF;
+
+                hp_buf[30] = blue_hp & 0xFF;
+                hp_buf[31] = (blue_hp >> 8) & 0xFF;
+
+                uint8_t sum_h = 0, add_h = 0;
+                for (int i = 0; i < 36; i++) {
+                    sum_h += hp_buf[i];
+                    add_h += sum_h;
+                }
+                hp_buf[36] = sum_h;
+                hp_buf[37] = add_h;
+
+                send_packet(hp_buf, 38);
+            }
+        }
     }
-    if (mcn_poll(gimbal_ins_node))
-    {
-        mcn_copy(MCN_HUB(gimbal_ins_topic), gimbal_ins_node, &gim_ins);
-    }
+
+    yaw_obs = gimbal_fdb.yaw_offset_angle - gim_ins.yaw;
+
+    trans_pub_push();
+
+    trans_dt = dwt_get_time_ms() - trans_start;
+    if (trans_dt > 1)
+        LOGINFO("Transmission Task is being DELAY! dt = [%f]\r\n", &trans_dt);
 }

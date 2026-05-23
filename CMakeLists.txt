@@ -161,7 +161,7 @@ file(GLOB_RECURSE SOURCES "Core/*.*" "Middlewares/*.*" "Drivers/*.*" "USB_DEVICE
         "src/modules/pwm/*.*"
         "src/modules/ws2812b/*.*"
         "src/modules/rc/sbus/*.*"
-#        "src/modules/rc/keyboard/*.*"
+ #       "src/modules/rc/keyboard/*.*"
         "src/modules/referee/*.*"
         "src/modules/rm_module.h"
         "src/task/*.*"

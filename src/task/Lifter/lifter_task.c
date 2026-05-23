@@ -124,6 +124,7 @@ void lifter_control_task(void)
 /**
  * @brief 底盘状态机处理
  */
+
 static void LifterCtrl_StateHander()
 {
     if ( lifter_cmd.ctrl_mode != LIFTER_RELAX)
@@ -165,8 +166,10 @@ static void LifterCtrl_StateHander()
             break;
         case LIFTER_HEIGHT_KEEP:
             // SetRefState(&g_lifter_ctrl,lifter_cmd);
+
             break;
         case LIFTER_HEIGHT_INIT:
+
             if (fabs(g_lifter_ctrl.state.h - g_lifter_ctrl.state.h_ref <= 0.01f)) //小于等于5cm
             {
                 lifter_fdb.back_mode = LIFTER_BACK_IS_OK; //完成归中
@@ -188,6 +191,9 @@ static void LifterCtrl_StateHander()
             break;
             case LIFTER_BACK_UP:
             g_lifter_ctrl.leg.ref_joint_angle[3]=lifter_cmd.motor3angel;
+            break;
+        case LIFTER_JUMP:
+
             break;
     }
 }
@@ -313,6 +319,7 @@ static void motor_control_0(unitree_motor_object_t *motor)
     float pid_out=-pid_calculate(lifter_pid_controller[0].speed_pid,g_lifter_ctrl.leg.joint_angle[0],g_lifter_ctrl.leg.ref_joint_angle[0]);
     torque=torque+pid_out;
     torqueaa=torque;
+
     VAL_LIMIT(torque,-2.5f,2.5f);
     // 设置电机控制参数（纯力矩控制模式：kp=0, kd=0）
     // pos=0, vel=0, tor=目标力矩, kp=0, kd=0
@@ -333,6 +340,7 @@ static void motor_control_1(unitree_motor_object_t *motor)
     float torque = -g_lifter_ctrl.leg.joint_torque[1]/6.33000f;
     float pid_out=pid_calculate(lifter_pid_controller[1].speed_pid,g_lifter_ctrl.leg.joint_angle[1],g_lifter_ctrl.leg.ref_joint_angle[1]);
     torque=torque+pid_out;
+
     VAL_LIMIT(torque,-2.5f,2.5f);
     // 设置电机控制参数（纯力矩控制模式：kp=0, kd=0）
     // pos=0, vel=0, tor=目标力矩, kp=0, kd=0
@@ -353,7 +361,7 @@ static void motor_control_2(unitree_motor_object_t *motor)
     float torque = -g_lifter_ctrl.leg.joint_torque[2]/6.33000f;
     float pid_out=pid_calculate(lifter_pid_controller[2].speed_pid,g_lifter_ctrl.leg.joint_angle[2],g_lifter_ctrl.leg.ref_joint_angle[2]);
     torque=torque+pid_out;
-    VAL_LIMIT(torque,-2.5f,2.5f);
+
     // 设置电机控制参数（纯力矩控制模式：kp=0, kd=0）
     // pos=0, vel=0, tor=目标力矩, kp=0, kd=0
     unitree_motor_set_control(motor, 0.0f, 0.0f, torque, 0.0f, lifter_cmd.Kd);
@@ -373,6 +381,7 @@ static void motor_control_3(unitree_motor_object_t *motor)
     float torque = g_lifter_ctrl.leg.joint_torque[3]/6.33000f;
     float pid_out=-pid_calculate(lifter_pid_controller[3].speed_pid,g_lifter_ctrl.leg.joint_angle[3],g_lifter_ctrl.leg.ref_joint_angle[3]);
     torque=torque+pid_out;
+
     VAL_LIMIT(torque,-2.5f,2.5f);
     // 设置电机控制参数（纯力矩控制模式：kp=0, kd=0）
     // pos=0, vel=0, tor=目标力矩, kp=0, kd=0

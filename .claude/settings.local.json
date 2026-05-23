@@ -2,7 +2,8 @@
   "permissions": {
     "allow": [
       "Bash(make -j4)",
-      "Bash(cmake --build .)"
+      "Bash(cmake --build .)",
+      "Bash(ninja)"
     ]
   }
 }

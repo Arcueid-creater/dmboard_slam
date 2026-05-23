@@ -190,9 +190,9 @@ static void GimbalState_Ctrl()
 
             break;
         case GIMBAL_AUTO:
-            // gimbal_cmd_data.yaw =trans_fdb_data.yaw_filtered-gimbal_fdb_data.yaw_relative_angle;
-            gimbal_cmd_data.yaw =trans_fdb_data.yaw_filtered;
-            gimbal_cmd_data.pitch=-trans_fdb_data.pitch_filtered;
+            // gimbal_cmd_data.yaw =trans_fdb_data.yaw-gimbal_fdb_data.yaw_relative_angle;
+            gimbal_cmd_data.yaw =trans_fdb_data.yaw;
+            gimbal_cmd_data.pitch=-trans_fdb_data.pitch;
             // gimbal_cmd_data.pitch=-8.0f;
             // gimbal_cmd_data.yaw =-trans_fdb_data.yaw;
             // gimbal_cmd_data.pitch=-trans_fdb_data.pitch;
@@ -395,16 +395,22 @@ static void LifterState_Ctrl()
         {
             if (rc_now->sw4==RC_DN)//因为直接一下拨打RC_DN，是自瞄模式，直接开启自瞄模式，默认需要进行归中操作
             {
-                if (rc_last->sw4==RC_UP||lifter_cmd.last_mode==LIFTER_RELAX)//如果没有完成归中操作，需要先进行归中
+                if (rc_last->sw4==RC_UP||lifter_cmd.last_mode==LIFTER_RELAX||lifter_cmd.ctrl_mode==LIFTER_RELAX)//如果没有完成归中操作，需要先进行归中
                 {
                     lifter_cmd.ctrl_mode=LIFTER_HEIGHT_INIT;
                 }//转换成初始化的控制模式之后，完成归中会自动转换为KEEP模式
-                //所以不需要写上一个模式时是初始化，该做什么处    理
+                //所以不需要写上一个模式时是初始化，该做什么处 理
+                // if (rc_now->sw2==RC_DN&&lifter_cmd.ctrl_mode==LIFTER_HEIGHT_KEEP)
+                // {
+                //     lifter_cmd.ctrl_mode=LIFTER_JUMP;
+                // }
+                // if (rc_now->sw2==RC_UP&&(lifter_cmd.ctrl_mode==LIFTER_JUMP||lifter_cmd.last_mode==LIFTER_JUMP))
+                // {
+                //     lifter_cmd.ctrl_mode=LIFTER_HEIGHT_INIT;
+                // }
+
             }
-            if (rc_now->sw1==RC_DN&&(lifter_cmd.ctrl_mode==LIFTER_HEIGHT_KEEP||lifter_cmd.ctrl_mode==LIFTER_CLIMB))//处于LIFTER_HEIGHT_KEEP模式，说明之前归中任务完成，可以直接转换成小陀螺模式
-            {
-                // lifter_cmd.ctrl_mode=LIFTER_SPIN;
-            }
+
             if ((lifter_cmd.last_mode==LIFTER_SPIN||lifter_cmd.ctrl_mode==LIFTER_SPIN)&&rc_now->sw1!=RC_DN)//必须满足上一次时旋转模式，并且上一次的拨杆时在下方，
                 //拨杆拨动，退出小陀螺模式，才能确保转换状态正常完成，并且需要进行一次归中
             {
