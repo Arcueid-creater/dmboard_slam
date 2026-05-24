@@ -107,7 +107,7 @@ int extract_data(MOTOR_recv *motor_r)
 // 	if (huart == &huart2) {
 // 		SET_huart2_DE_DOWN();
 // 		SET_huart3_DE_DOWN();
-// 		// ÈçÓÐÐèÒª£¬Ò²¿ÉÒÔÔÚÕâÀï¸øÈÎÎñ·¢Í¨Öª/ÐÅºÅÁ¿
+// 		// ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½ï¿½Ò²ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Í¨Öª/ï¿½Åºï¿½ï¿½ï¿½
 // 	} else if (huart == &huart3) {
 // 		SET_huart2_DE_DOWN();
 // 		SET_huart3_DE_DOWN();
@@ -178,6 +178,9 @@ HAL_StatusTypeDef SERVO_Send_recv(MOTOR_send *pData, MOTOR_recv *rData)
 
     return HAL_ERROR;
 }
+
+extern void esp8266_tx_done_isr(void);
+
 void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 {
 	if (huart == &huart2)
@@ -189,5 +192,9 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart)
 	{
 		SET_huart2_DE_DOWN();
 		SET_huart3_DE_DOWN();
+	}
+	else if (huart->Instance == USART10)
+	{
+		esp8266_tx_done_isr();
 	}
 }

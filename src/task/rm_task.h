@@ -23,6 +23,7 @@
 #include "bsp_log.h"
 #include "drv_dwt.h"
 #include "lifter_task.h"
+#include "cloud_task.h"
 /* ---------------------------------- 线程相关 ---------------------------------- */
 
 void ins_task_entry(void const *argument);
@@ -34,5 +35,6 @@ void gimbal_task_entry(void const *argument);
 void shoot_task_entry(void const *argument);
 //void referee_task_entry(void const *argument);
 void LifterTask_entry(void const * argument);
+void cloud_task_entry(void const *argument);
 void OS_task_init();
 #endif /* _RM_TASK_H */

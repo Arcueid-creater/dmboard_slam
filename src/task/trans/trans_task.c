@@ -78,7 +78,9 @@ MCN_DECLARE(gimbal_ins_topic);
 static McnNode_t gimbal_ins_node;
 static struct dm_imu_t gim_ins;
 
+#ifndef BSP_USING_ESP8266_CLOUD
 extern struct referee_fdb_msg referee_fdb;
+#endif
 
 static void trans_pub_push(void);
 static void trans_sub_init(void);
@@ -465,6 +467,7 @@ void trans_control_task(void)
         if (send_cnt >= 100) {
             send_cnt = 0;
 
+#ifndef BSP_USING_ESP8266_CLOUD
             // 2.1 哨兵姿态数据
             {
                 uint8_t pose_buf[7] = {0};
@@ -514,6 +517,7 @@ void trans_control_task(void)
 
                 send_packet(hp_buf, 38);
             }
+#endif
         }
     }
 

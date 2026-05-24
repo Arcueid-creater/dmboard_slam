@@ -205,6 +205,10 @@ void shoot_control(void)
 
     if (count_shoot%2==0)
     {
+        tx_data[0]=1;
+        friction_speed=600;
+        tx_data[1]=(friction_speed>>8)& 0xff;
+        tx_data[2]=friction_speed & 0xff;
         CAN_send(&hfdcan3,0x12,tx_data);
     }
     count_shoot++;

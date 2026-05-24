@@ -14,6 +14,7 @@ osThreadId shootTaskHandle;
 osThreadId lifterTaskHandle ;
 osThreadId gimbalTaskHandle;
 osThreadId uartTaskHandle;
+osThreadId cloudTaskHandle;
 static float motor_dt;
 static float chassis_dt;
 static float cmd_dt;
@@ -27,13 +28,13 @@ static char cmd_dt_str[16], motor_dt_str[16], chassis_dt_str[16],
 
 
 /**
- * @brief ³õÊ¼»¯»úÆ÷ÈËÈÎÎñ,ËùÓÐ³ÖÐøÔËÐÐµÄÈÎÎñ¶¼ÔÚÕâÀï³õÊ¼»¯
+ * @brief ï¿½ï¿½Ê¼ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½,ï¿½ï¿½ï¿½Ð³ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ðµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ê¼ï¿½ï¿½
  *
  */
  void OS_task_init()
 {
     osThreadDef(instask, ins_task_entry, osPriorityNormal, 0, 1024);
-    insTaskHandle = osThreadCreate(osThread(instask), NULL); // Îª×ËÌ¬½âËãÉèÖÃ½Ï¸ßÓÅÏÈ¼¶,È·±£ÒÔ1khzµÄÆµÂÊÖ´ÐÐ
+    insTaskHandle = osThreadCreate(osThread(instask), NULL); // Îªï¿½ï¿½Ì¬ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ã½Ï¸ï¿½ï¿½ï¿½ï¿½È¼ï¿½,È·ï¿½ï¿½ï¿½ï¿½1khzï¿½ï¿½Æµï¿½ï¿½Ö´ï¿½ï¿½
 
     osThreadDef(motortask, motor_task_entry,osPriorityAboveNormal , 0, 2048);
     motorTaskHandle = osThreadCreate(osThread(motortask), NULL);
@@ -53,11 +54,15 @@ static char cmd_dt_str[16], motor_dt_str[16], chassis_dt_str[16],
     osThreadDef(shoottask, shoot_task_entry, osPriorityNormal, 0, 1024);
     shootTaskHandle = osThreadCreate(osThread(shoottask), NULL);
 
-     osThreadDef(lifter_task, LifterTask_entry, osPriorityAboveNormal, 0, 2048);
-     lifterTaskHandle = osThreadCreate(osThread(lifter_task), NULL);
+     // osThreadDef(lifter_task, LifterTask_entry, osPriorityAboveNormal, 0, 2048);
+     // lifterTaskHandle = osThreadCreate(osThread(lifter_task), NULL);
 
      osThreadDef(uart_task,USARTRecTask_Entry,osPriorityAboveNormal,0,2048);
      uartTaskHandle=osThreadCreate(osThread(uart_task), NULL);
+
+     osThreadDef(cloudtask, cloud_task_entry, osPriorityNormal, 0, 2048);
+     cloudTaskHandle = osThreadCreate(osThread(cloudtask), NULL);
+
 //    osThreadDef(refereetask, referee_task_entry, osPriorityNormal, 0, 1024);
 //    refereeTaskHandle = osThreadCreate(osThread(refereetask), NULL);
 
@@ -72,7 +77,7 @@ __attribute__((noreturn))  void LifterTask_entry (void const *argument)
      uint32_t lifter_waste_time = osKernelSysTick();
      for (;;)
      {
-         /* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+         /* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
          lifter_dt = dwt_get_time_ms() - start;
          start = dwt_get_time_ms();
          lifter_tim=lifter_dt;
@@ -81,7 +86,7 @@ __attribute__((noreturn))  void LifterTask_entry (void const *argument)
              LOGERROR("[freeRTOS] Chassis Task is being DELAY! dt = %s\r\n", &chassis_dt_str);
          }
 
-         /* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+         /* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
 
          lifter_control_task();
 
@@ -97,7 +102,7 @@ __attribute__((noreturn))  void motor_task_entry(void const *argument)
     uint32_t motor_wake_time = osKernelSysTick();
     for (;;)
     {
-/* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+/* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
         motor_dt = dwt_get_time_ms() - motor_start;
         motor_start = dwt_get_time_ms();
         motor_tim=motor_dt;
@@ -106,7 +111,7 @@ __attribute__((noreturn))  void motor_task_entry(void const *argument)
             LOGERROR("[freeRTOS] Motor Task is being DELAY! dt = %s\r\n", &motor_dt_str);
         }
 
-/* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+/* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
 
         motor_control_task();
         //
@@ -123,7 +128,7 @@ __attribute__((noreturn))  void chassis_task_entry(void const *argument)
     uint32_t chassis_wake_time = osKernelSysTick();
     for (;;)
     {
-/* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+/* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
         chassis_dt = dwt_get_time_ms() - chassis_start;
         chassis_start = dwt_get_time_ms();
         chassis_tim=chassis_dt;
@@ -132,11 +137,11 @@ __attribute__((noreturn))  void chassis_task_entry(void const *argument)
             LOGERROR("[freeRTOS] Chassis Task is being DELAY! dt = %s\r\n", &chassis_dt_str);
         }
 
-/* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+/* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
 
         chassis_control_task();
         // dji_motor_control();
-        vTaskDelayUntil(&chassis_wake_time, 1);  // Æ½ºâ²½±øÐèÒª1khz
+        vTaskDelayUntil(&chassis_wake_time, 1);  // Æ½ï¿½â²½ï¿½ï¿½ï¿½ï¿½Òª1khz
     }
 }
 int cmd_tim=0;
@@ -147,7 +152,7 @@ int cmd_tim=0;
      uint32_t robot_wake_time = osKernelSysTick();
      for (;;)
      {
-/* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+/* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
          cmd_dt = dwt_get_time_ms() - cmd_start;
          cmd_start = dwt_get_time_ms();
          cmd_tim=cmd_dt;
@@ -156,7 +161,7 @@ int cmd_tim=0;
              LOGERROR("[freeRTOS] Cmd Task is being DELAY! dt = %s\r\n", &cmd_dt_str);
          }
 
-/* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+/* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
 
          cmd_control_task();
 
@@ -171,7 +176,7 @@ int trans_tim=0;
     uint32_t trans_wake_time = osKernelSysTick();
     for (;;)
     {
-/* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+/* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
         trans_dt = dwt_get_time_ms() - trans_start;
         trans_start = dwt_get_time_ms();
         trans_tim=trans_dt;
@@ -180,7 +185,7 @@ int trans_tim=0;
             LOGERROR("[freeRTOS] Trans Task is being DELAY! dt = %s\r\n", &trans_dt_str);
         }
 
-/* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+/* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
 
         trans_control_task();
 
@@ -195,7 +200,7 @@ int gimbal_tim=0;
      uint32_t gimbal_wake_time = osKernelSysTick();
      for (;;)
      {
-/* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+/* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
          gimbal_dt = dwt_get_time_ms() - gimbal_start;
          gimbal_start = dwt_get_time_ms();
          gimbal_tim=gimbal_dt;
@@ -204,7 +209,7 @@ int gimbal_tim=0;
              LOGERROR("[freeRTOS] Gimbal Task is being DELAY! dt = %s\r\n", &gimbal_start_str);
          }
 
-/* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+/* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
 
          gimbal_control_task();
 
@@ -219,7 +224,7 @@ int shoot_tim=0;
      uint32_t shoot_wake_time = osKernelSysTick();
      for (;;)
      {
-/* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+/* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
          shoot_dt = dwt_get_time_ms() - shoot_start;
          shoot_start = dwt_get_time_ms();
          shoot_tim=shoot_dt;
@@ -228,7 +233,7 @@ int shoot_tim=0;
              LOGERROR("[freeRTOS] shoot Task is being DELAY! dt = %s\r\n", &shoot_dt_str);
          }
 
-/* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+/* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
 
          shoot_control_task();
 
@@ -243,7 +248,7 @@ int ins_tim=0;
      uint32_t ins_wake_time = osKernelSysTick();
      for (;;)
      {
-/* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+/* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
          ins_dt = dwt_get_time_ms() - ins_start;
          ins_start = dwt_get_time_ms();
          ins_tim=ins_dt;
@@ -252,7 +257,7 @@ int ins_tim=0;
              LOGERROR("[freeRTOS] ins Task is being DELAY! dt = %s\r\n", &ins_dt_str);
          }
 
-/* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+/* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
          ins_control_task();
 
          vTaskDelayUntil(&ins_wake_time, 1);
@@ -277,10 +282,10 @@ int ins_tim=0;
 //    /* Infinite loop */
 //    for(;;)
 //    {
-///* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+///* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
 //        referee_dt = dwt_get_time_ms() - referee_start;
 //        referee_start = dwt_get_time_ms();
-///* ------------------------------ µ÷ÊÔ¼à²âÏß³Ìµ÷¶È ------------------------------ */
+///* ------------------------------ ï¿½ï¿½ï¿½Ô¼ï¿½ï¿½ï¿½ß³Ìµï¿½ï¿½ï¿½ ------------------------------ */
 //
 //        dt = dwt_get_delta(&referee_dwt);
 //
@@ -288,3 +293,16 @@ int ins_tim=0;
 //        vTaskDelayUntil(&referee_wake_time, 1);
 //    }
 //}
+
+__attribute__((noreturn)) void cloud_task_entry(void const *argument)
+{
+    float cloud_start = dwt_get_time_ms();
+    LOGINFO("[freeRTOS] Cloud Task Start\r\n");
+
+    uint32_t cloud_wake_time = osKernelSysTick();
+    for (;;)
+    {
+        cloud_control_task();
+        vTaskDelayUntil(&cloud_wake_time, 100);
+    }
+}

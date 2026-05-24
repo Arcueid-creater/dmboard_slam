@@ -1,37 +1,46 @@
 //
-// Created by Áõ¼Î¿¡ on 25-4-9.
+// Created by ï¿½ï¿½ï¿½Î¿ï¿½ on 25-4-9.
 //
 
 #include "uart_receive.h"
 #include "FreeRTOS.h"
 #include "rm_module.h"
-#include "referee_system.h"
+#include "esp8266.h"
 #include "usart.h"
 #include <string.h>
 #include "cmsis_os.h"
 #include "rc_sbus.h"
 #include "unitree_motor.h"
-// ×Ô¶¨Òå¿ØÖÆÆ÷´®¿Ú
-static volatile uint8_t usart1_rx_buffer_index;  // µ±Ç°Ê¹ÓÃµÄ½ÓÊÕ»º³åÇø
+// ï¿½Ô¶ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+static volatile uint8_t usart1_rx_buffer_index;  // ï¿½ï¿½Ç°Ê¹ï¿½ÃµÄ½ï¿½ï¿½Õ»ï¿½ï¿½ï¿½ï¿½ï¿½
 static volatile uint16_t usart1_rx_size;
 static uint8_t usart1_rx_buffer[2][CUSTOMER_CONTROLLER_BUF_SIZE];
 
 #define DBUS_RX_BUF_SIZE 41
-// ¸£Ë¹Ò£¿ØÆ÷
-static volatile uint8_t usart5_rx_buffer_index;  // µ±Ç°Ê¹ÓÃµÄ½ÓÊÕ»º³åÇø
+// ï¿½ï¿½Ë¹Ò£ï¿½ï¿½ï¿½ï¿½
+static volatile uint8_t usart5_rx_buffer_index;  // ï¿½ï¿½Ç°Ê¹ï¿½ÃµÄ½ï¿½ï¿½Õ»ï¿½ï¿½ï¿½ï¿½ï¿½
 static volatile uint16_t usart5_rx_size;
 static uint8_t usart5_rx_buffer[2][DBUS_RX_BUF_SIZE];
 extern SemaphoreHandle_t xSemaphoreUART5;
 
-// ²ÃÅĞÏµÍ³´®¿Ú 10
-static volatile uint8_t referee_rx_buffer_index;  // µ±Ç°Ê¹ÓÃµÄ½ÓÊÕ»º³åÇø
-static volatile uint16_t referee_rx_size;
-static uint8_t referee_rx_buffer[2][REFEREE_RX_BUF_SIZE];
+// ï¿½ï¿½ï¿½ï¿½ÏµÍ³ï¿½ï¿½ï¿½ï¿½ 10
 extern SemaphoreHandle_t xSemaphoreUART10;
 
-// Íâ²¿ÒıÓÃ
-extern QueueSetHandle_t xUartQueueSet; // ¶¨Òå¶ÓÁĞ¼¯¾ä±ú,Í³Ò»¹ÜÀí´®¿ÚÖĞ¶ÏĞÅºÅÁ¿
-extern struct referee_fdb_msg referee_fdb;
+#define AIR_SENSOR_RX_BUF_SIZE 32
+static volatile uint8_t uart7_rx_buffer_index;
+static volatile uint16_t uart7_rx_size[2];
+static uint8_t uart7_rx_buffer[2][AIR_SENSOR_RX_BUF_SIZE];
+extern SemaphoreHandle_t xSemaphoreUART7;
+
+struct air_sensor_msg air_sensor_data;
+volatile uint32_t uart7_error_code;
+volatile uint32_t uart7_rx_callback_cnt;
+volatile uint32_t uart7_proc_cnt;
+volatile uint32_t uart7_checksum_fail_cnt;
+volatile uint16_t uart7_last_size;
+
+// ï¿½â²¿ï¿½ï¿½ï¿½ï¿½
+extern QueueSetHandle_t xUartQueueSet; // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ¼ï¿½ï¿½ï¿½ï¿½,Í³Ò»ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ¶ï¿½ï¿½Åºï¿½ï¿½ï¿½
 extern SemaphoreHandle_t xSemaphoreUSART2;
 #define MOTOR_RX_QUEUE_LENGTH 16
 
@@ -44,17 +53,20 @@ static uint8_t usart3_rx_buffer[sizeof(MotorData_t)];
 
 void USART5_DMA_Init(void) {
     memset(usart5_rx_buffer, 0, sizeof(usart5_rx_buffer));
-    // ¹Ø±ÕDMAµÄ´«Êä¹ı°ëÖĞ¶Ï£¬½ö±£ÁôÍê³ÉÖĞ¶Ï
-    HAL_UARTEx_ReceiveToIdle_DMA(&huart5, usart5_rx_buffer[usart5_rx_buffer_index], DBUS_RX_BUF_SIZE); // ½ÓÊÕÍê±ÏºóÖØÆô
+    // ï¿½Ø±ï¿½DMAï¿½Ä´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ¶Ï£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ğ¶ï¿½
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart5, usart5_rx_buffer[usart5_rx_buffer_index], DBUS_RX_BUF_SIZE); // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ïºï¿½ï¿½ï¿½ï¿½ï¿½
     __HAL_DMA_DISABLE_IT(huart5.hdmarx, DMA_IT_HT);
 }
 
+void USART7_DMA_Init(void) {
+    memset(uart7_rx_buffer, 0, sizeof(uart7_rx_buffer));
+    memset(uart7_rx_size, 0, sizeof(uart7_rx_size));
+    HAL_UARTEx_ReceiveToIdle_DMA(&huart7, uart7_rx_buffer[uart7_rx_buffer_index], AIR_SENSOR_RX_BUF_SIZE);
+    __HAL_DMA_DISABLE_IT(huart7.hdmarx, DMA_IT_HT);
+}
+
 void USART10_DMA_Init(void) {
-    memset(referee_rx_buffer, 0, sizeof(referee_rx_buffer));
-    //Ê¹ÄÜDMA´®¿Ú½ÓÊÕ
-    HAL_UARTEx_ReceiveToIdle_DMA(&huart10, referee_rx_buffer[referee_rx_buffer_index], REFEREE_RX_BUF_SIZE);
-    // ¹Ø±ÕDMAµÄ´«Êä¹ı°ëÖĞ¶Ï£¬½ö±£ÁôÍê³ÉÖĞ¶Ï
-    __HAL_DMA_DISABLE_IT(huart10.hdmarx, DMA_IT_HT);
+    esp8266_dma_init();
 }
 
 
@@ -64,7 +76,7 @@ void process_uart5_data(void) {
 
     if (xSemaphoreTake(xSemaphoreUART5, 0) == pdTRUE) {
         finishedBuffer = usart5_rx_buffer_index ^ 1;
-        /* SBUSĞ­Òé½âÎö */
+        /* SBUSĞ­ï¿½ï¿½ï¿½ï¿½ï¿½ */
         sbus_data_unpack(usart5_rx_buffer[finishedBuffer], usart5_rx_size);
 
         memset(usart5_rx_buffer[finishedBuffer], 0, DBUS_RX_BUF_SIZE);
@@ -75,14 +87,50 @@ void process_uart5_data(void) {
 }
 
 void process_uart10_data(void) {
+    if (xSemaphoreTake(xSemaphoreUART10, 0) == pdTRUE) {
+        esp8266_process_rx();
+    }
+}
+
+void process_uart7_data(void) {
     uint8_t finishedBuffer;
 
-    if (xSemaphoreTake(xSemaphoreUART10, 0) == pdTRUE) {
-        finishedBuffer = referee_rx_buffer_index ^ 1;
-        /* ²ÃÅĞÏµÍ³Êı¾İ½âÎö */
-        referee_data_unpack(referee_rx_buffer[finishedBuffer], referee_rx_size);
+    if (xSemaphoreTake(xSemaphoreUART7, 0) == pdTRUE) {
+        uart7_proc_cnt++;
+        finishedBuffer = uart7_rx_buffer_index ^ 1;
+        uint16_t size = uart7_rx_size[finishedBuffer];
+        uint8_t *data = uart7_rx_buffer[finishedBuffer];
 
-        memset(referee_rx_buffer[finishedBuffer], 0, REFEREE_RX_BUF_SIZE);
+        // åœ¨æ¥æ”¶ç¼“å†²ä¸­æœç´¢ 0x2C å¸§å¤´ï¼ˆå…¼å®¹ä¸Šç”µæ—¶çš„é•¿åˆå§‹åŒ–å¸§ï¼‰
+        int found = 0;
+        int max_pos = (int)size - 12;
+        if (max_pos < 0) max_pos = 0;
+        for (int pos = 0; pos <= max_pos; pos++) {
+            if (data[pos] == 0x2C) {
+                uint8_t *frame = data + pos;
+                uint8_t checksum = 0;
+                for (int i = 0; i < 11; i++) {
+                    checksum += frame[i];
+                }
+                checksum = ~checksum + 1;
+
+                if (checksum == frame[11]) {
+                    air_sensor_data.voc      = ((uint16_t)frame[1] << 8) | frame[2];
+                    air_sensor_data.hcho     = ((uint16_t)frame[3] << 8) | frame[4];
+                    air_sensor_data.eco2     = ((uint16_t)frame[5] << 8) | frame[6];
+                    air_sensor_data.temp     = ((int16_t)((uint16_t)frame[7] << 8 | frame[8])) / 10.0f;
+                    air_sensor_data.humidity = (((uint16_t)frame[9] << 8) | frame[10]) / 10.0f;
+                    found = 1;
+                    break;
+                }
+            }
+        }
+
+        if (!found) {
+            uart7_checksum_fail_cnt++;
+        }
+
+        memset(uart7_rx_buffer[finishedBuffer], 0, AIR_SENSOR_RX_BUF_SIZE);
     }
 }
 
@@ -93,19 +141,22 @@ __attribute__((noreturn)) void USARTRecTask_Entry(void const * argument)
 
     USART5_DMA_Init();
     USART10_DMA_Init();
+    USART7_DMA_Init();
     /* USER CODE BEGIN USARTRecTask_Entry */
     /* Infinite loop */
     for(;;)
     {
-        // ×èÈûµÈ´ıÈÎÒ»ĞÅºÅÁ¿´¥·¢
+        // ï¿½ï¿½ï¿½ï¿½ï¿½È´ï¿½ï¿½ï¿½Ò»ï¿½Åºï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         xActivatedMember = xQueueSelectFromSet(xUartQueueSet, portMAX_DELAY);
 
-        // ÅĞ¶Ï´¥·¢Ô´²¢´¦ÀíÊı¾İ£¬¸ù¾İ´®¿ÚÊı¾İµÄÖØÒª³Ì¶Èµ÷Õû´¦ÀíË³Ğò
+        // ï¿½Ğ¶Ï´ï¿½ï¿½ï¿½Ô´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½İ£ï¿½ï¿½ï¿½ï¿½İ´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½İµï¿½ï¿½ï¿½Òªï¿½Ì¶Èµï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë³ï¿½ï¿½
 
         if (xActivatedMember == xSemaphoreUART5) {
-            process_uart5_data();  // ¸£Ë¹Ò£¿ØÆ÷
+            process_uart5_data();  // ï¿½ï¿½Ë¹Ò£ï¿½ï¿½ï¿½ï¿½
         } else if (xActivatedMember == xSemaphoreUART10) {
-            process_uart10_data(); // ²ÃÅĞÏµÍ³£¨µç¹Ü£©
+            process_uart10_data();
+        } else if (xActivatedMember == xSemaphoreUART7) {
+            process_uart7_data(); // ï¿½ï¿½ï¿½ï¿½ÏµÍ³ï¿½ï¿½ï¿½ï¿½Ü£ï¿½
         }
 
         vTaskDelay(1);
@@ -131,7 +182,7 @@ void unitree_motor_rs485_reset(void)
 int sizea=0;
 void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef * huart, uint16_t Size)
 {
-
+    sizea=Size;
     if (huart->Instance == USART2)
     {
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
@@ -140,7 +191,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef * huart, uint16_t Size)
         {
             msg.channel = usart2_485;
             memcpy(&msg.motor_data, usart2_rx_buffer, sizeof(MotorData_t));
-            xQueueSendFromISR(motor_rx_queue, &msg, &xHigherPriorityTaskWoken);//ÒÑ¾­°ÑÏûÏ¢·¢ËÍ¸ø¶ÓÁĞÁË£¬²»ĞèÒªÔÙ½øĞĞÈÎÎñ´¦Àí
+            xQueueSendFromISR(motor_rx_queue, &msg, &xHigherPriorityTaskWoken);//ï¿½Ñ¾ï¿½ï¿½ï¿½ï¿½ï¿½Ï¢ï¿½ï¿½ï¿½Í¸ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ë£ï¿½ï¿½ï¿½ï¿½ï¿½Òªï¿½Ù½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         }
         HAL_UARTEx_ReceiveToIdle_DMA(&huart2, usart2_rx_buffer, sizeof(usart2_rx_buffer));
         xSemaphoreGiveFromISR(xSemaphoreUSART2,NULL);
@@ -164,19 +215,30 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef * huart, uint16_t Size)
 
     if (huart->Instance == USART10)
     {
-        // ÅĞ¶Ï½ÓÊÕµÄÊı¾İ´óĞ¡ÊÇ·ñÏŞÖÆ£¬Èç¹û³¬¹ı£¬Ôò²»´¦Àí
-        if (Size > REFEREE_RX_BUF_SIZE)
+        BaseType_t xHigherPriorityTaskWoken = pdFALSE;
+        esp8266_rx_isr(Size);
+        xSemaphoreGiveFromISR(xSemaphoreUART10, &xHigherPriorityTaskWoken);
+        portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
+    }
+
+    if (huart->Instance == UART7)
+    {
+        uart7_rx_callback_cnt++;
+        uart7_last_size = Size;
+
+        if (Size > AIR_SENSOR_RX_BUF_SIZE)
         {
+            HAL_UARTEx_ReceiveToIdle_DMA(&huart7, uart7_rx_buffer[uart7_rx_buffer_index], AIR_SENSOR_RX_BUF_SIZE);
             return;
         }
         BaseType_t xHigherPriorityTaskWoken = pdFALSE;
 
-        referee_rx_size = Size;
-        referee_rx_buffer_index = referee_rx_buffer_index ^ 1;
+        uart7_rx_size[uart7_rx_buffer_index] = Size;
+        uart7_rx_buffer_index = uart7_rx_buffer_index ^ 1;
 
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart10, referee_rx_buffer[referee_rx_buffer_index], REFEREE_RX_BUF_SIZE);
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart7, uart7_rx_buffer[uart7_rx_buffer_index], AIR_SENSOR_RX_BUF_SIZE);
 
-        xSemaphoreGiveFromISR(xSemaphoreUART10,NULL);
+        xSemaphoreGiveFromISR(xSemaphoreUART7, NULL);
         portYIELD_FROM_ISR(xHigherPriorityTaskWoken);
     }
 
@@ -187,14 +249,24 @@ void HAL_UART_ErrorCallback(UART_HandleTypeDef * huart)
 {
     if(huart->Instance == UART5)
     {
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart5, usart5_rx_buffer[usart5_rx_buffer_index], DBUS_RX_BUF_SIZE); // ½ÓÊÕ·¢Éú´íÎóºóÖØÆô
-        memset(usart5_rx_buffer, 0, sizeof(usart5_rx_buffer));							   // Çå³ı½ÓÊÕ»º´æ
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart5, usart5_rx_buffer[usart5_rx_buffer_index], DBUS_RX_BUF_SIZE); // ï¿½ï¿½ï¿½Õ·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+        memset(usart5_rx_buffer, 0, sizeof(usart5_rx_buffer));							   // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Õ»ï¿½ï¿½ï¿½
     }
 
     if(huart->Instance == USART10)
     {
-        HAL_UARTEx_ReceiveToIdle_DMA(&huart10, referee_rx_buffer[referee_rx_buffer_index], REFEREE_RX_BUF_SIZE); // ½ÓÊÕ·¢Éú´íÎóºóÖØÆô
-        memset(referee_rx_buffer, 0, sizeof(referee_rx_buffer));// Çå³ıË«»º´æ
+        esp8266_error_recover();
+    }
+
+    if(huart->Instance == UART7)
+    {
+        uart7_error_code = huart->ErrorCode;
+        HAL_UART_AbortReceive(&huart7);
+        __HAL_UART_CLEAR_FLAG(&huart7, UART_CLEAR_NEF | UART_CLEAR_OREF | UART_CLEAR_FEF | UART_CLEAR_PEF);
+        memset(uart7_rx_buffer, 0, sizeof(uart7_rx_buffer));
+        memset(uart7_rx_size, 0, sizeof(uart7_rx_size));
+        HAL_UARTEx_ReceiveToIdle_DMA(&huart7, uart7_rx_buffer[uart7_rx_buffer_index], AIR_SENSOR_RX_BUF_SIZE);
+        __HAL_DMA_DISABLE_IT(huart7.hdmarx, DMA_IT_HT);
     }
 
 

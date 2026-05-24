@@ -369,4 +369,28 @@
 #define CAN_GIM_STATE         0x345   /* 底盘状态数据 */
 #define CAN_REFEREE_INFO      0x348   /* 裁判系统数据 */
 
+/* ---------------------------------- ESP8266 WiFi + OneNET 云通信 ---------------------------------- */
+#define BSP_USING_ESP8266_CLOUD
+
+/* ESP8266 串口配置 */
+#define ESP8266_RX_BUF_SIZE        512
+#define ESP8266_CMD_TIMEOUT_MS     5000
+#define ESP8266_RETRY_MAX          3
+
+/* WiFi 凭证（请自行修改为实际值） */
+#define ESP8266_WIFI_SSID          "Redmi K70111"
+#define ESP8266_WIFI_PASSWORD      "0d000721"
+
+/* OneNET 平台凭证（请自行修改为实际值） */
+#define ONENET_PROID               "8XO1bL4r3Y"
+#define ONENET_ACCESS_KEY          "5Ul3iSGjSw+TAynjkxPNb4nNId/Ns0MHq5X904U50ZM="
+#define ONENET_DEVICE_NAME         "air_dev"
+#define ONENET_VERSION             "2018-10-31"
+#define ONENET_TOKEN_ET            1956499200
+#define ONENET_MQTT_SERVER         "mqtts.heclouds.com"
+#define ONENET_MQTT_PORT           1883
+
+/* 云数据上报周期 (ms) */
+#define CLOUD_PUBLISH_PERIOD_MS    5000
+
 #endif /* _RM_CONFIG_H */

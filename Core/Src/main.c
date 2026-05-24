@@ -47,6 +47,7 @@
 SemaphoreHandle_t xSemaphoreUART10 = NULL;
 SemaphoreHandle_t xSemaphoreUSART2 = NULL;
 SemaphoreHandle_t xSemaphoreUART5 = NULL;
+SemaphoreHandle_t xSemaphoreUART7 = NULL;
 QueueSetHandle_t xUartQueueSet = NULL; // 定义队列集句柄,统一管理串口中断信号量
 SemaphoreHandle_t  sbus_cmd_mutex = NULL;
 /* USER CODE END PTD */
@@ -133,12 +134,14 @@ int main(void)
   xSemaphoreUART10 = xSemaphoreCreateBinary();  // <-- 在此处创建信号量
   xSemaphoreUSART2= xSemaphoreCreateBinary();
   xSemaphoreUART5 = xSemaphoreCreateBinary();  // <-- 在此处创建信号量
-  // 定义队列集（最多监听 3 个信号量）
-  xUartQueueSet = xQueueCreateSet(3);
+  xSemaphoreUART7 = xSemaphoreCreateBinary();
+  // 定义队列集（最多监听 4 个信号量）
+  xUartQueueSet = xQueueCreateSet(4);
 
   xQueueAddToSet(xSemaphoreUART5, xUartQueueSet);
   xQueueAddToSet(xSemaphoreUART10, xUartQueueSet);
   xQueueAddToSet(xSemaphoreUSART2, xUartQueueSet);
+  xQueueAddToSet(xSemaphoreUART7, xUartQueueSet);
 
   sbus_cmd_mutex = xSemaphoreCreateMutex();  // 初始化互斥锁
    // unitree_motor_receive_init();

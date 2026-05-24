@@ -9,13 +9,13 @@
 
 /**
  * @brief 机器人初始化,请在开启rtos之前调用
- * 
+ *
  */
 void robot_init();
 
 /**
  * @brief 机器人任务,放入实时系统以一定频率运行,内部会调用各个应用的任务
- * 
+ *
  */
 void robot_task();
 
@@ -260,6 +260,15 @@ struct trans_fdb_msg
     uint8_t pose;
     float chassis_power_limit;
     float shooter_17mm_cooling_heat;
+};
+
+struct air_sensor_msg
+{
+    uint16_t voc;        // VOC空气质量, ug/m3
+    uint16_t hcho;       // 甲醛浓度, ug/m3
+    uint16_t eco2;       // 等效二氧化碳, PPM
+    float temp;          // 温度, ℃
+    float humidity;      // 湿度, % RH
 };
 
 #endif

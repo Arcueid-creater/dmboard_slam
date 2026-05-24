@@ -128,8 +128,11 @@ include_directories(Core/Inc Drivers/STM32H7xx_HAL_Driver/Inc Drivers/STM32H7xx_
         src/modules/referee
         src/modules/rc/sbus
         src/modules/rc/keyboard
+        src/modules/esp8266
+        src/modules/onenet
 
         src/task
+        src/task/cloud
         src/task/ins
         src/task/motor
         src/task/cmd
@@ -163,6 +166,8 @@ file(GLOB_RECURSE SOURCES "Core/*.*" "Middlewares/*.*" "Drivers/*.*" "USB_DEVICE
         "src/modules/rc/sbus/*.*"
  #       "src/modules/rc/keyboard/*.*"
         "src/modules/referee/*.*"
+        "src/modules/esp8266/*.*"
+        "src/modules/onenet/*.*"
         "src/modules/rm_module.h"
         "src/task/*.*"
         "src/rm_config.h"
@@ -193,5 +198,4 @@ set(BIN_FILE ${PROJECT_BINARY_DIR}/${PROJECT_NAME}.bin)
 add_custom_command(TARGET ${PROJECT_NAME}.elf POST_BUILD
         COMMAND ${CMAKE_OBJCOPY} -Oihex $<TARGET_FILE:${PROJECT_NAME}.elf> ${HEX_FILE}
         COMMAND ${CMAKE_OBJCOPY} -Obinary $<TARGET_FILE:${PROJECT_NAME}.elf> ${BIN_FILE}
-        COMMENT "Building ${HEX_FILE}
-Building ${BIN_FILE}")
+        COMMENT "Generating hex and bin files")
